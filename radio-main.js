@@ -29,31 +29,41 @@ class RadioController {
     }
 
     showLoadingBar() {
-        const loadingBar = document.getElementById('loadingBar');
-        const loadingText = document.getElementById('loadingText');
+        const loadingIndicator = document.getElementById('loadingIndicator');
         const startBtn = document.getElementById('startBtn');
         
-        if (loadingBar) loadingBar.style.display = 'block';
-        if (loadingText) loadingText.style.display = 'block';
+        if (loadingIndicator) loadingIndicator.style.display = 'flex';
         if (startBtn) startBtn.style.display = 'none';
         
-        // Start progress animation
+        // Start with no circles active
         this.updateLoadingProgress(0);
     }
     
     updateLoadingProgress(percent) {
-        const progress = document.getElementById('loadingProgress');
-        if (progress) {
-            progress.style.width = percent + '%';
+        // Determine how many circles should be active based on progress
+        let activeCircles = 0;
+        if (percent >= 25) activeCircles = 1;
+        if (percent >= 50) activeCircles = 2;
+        if (percent >= 75) activeCircles = 3;
+        if (percent >= 100) activeCircles = 4;
+        
+        // Update each circle
+        for (let i = 1; i <= 4; i++) {
+            const circle = document.getElementById(`circle${i}`);
+            if (circle) {
+                if (i <= activeCircles) {
+                    circle.classList.add('active');
+                } else {
+                    circle.classList.remove('active');
+                }
+            }
         }
     }
     
     showStartButton() {
-        // Hide loading bar
-        const loadingBar = document.getElementById('loadingBar');
-        const loadingText = document.getElementById('loadingText');
-        if (loadingBar) loadingBar.style.display = 'none';
-        if (loadingText) loadingText.style.display = 'none';
+        // Hide loading indicator
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
         
         // Show start button
         const startBtn = document.getElementById('startBtn');

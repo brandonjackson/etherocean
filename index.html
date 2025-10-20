@@ -101,22 +101,26 @@
             transform: scale(1.05);
         }
 
-        .loading-bar {
-            width: 100%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            margin: 20px 0;
-            overflow: hidden;
+        .loading-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin: 20px auto 0 auto;
+            padding: 15px 30px;
             display: none;
         }
 
-        .loading-progress {
-            height: 100%;
+        .loading-circle {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #333;
+            transition: background-color 0.3s ease;
+        }
+
+        .loading-circle.active {
             background: #ffffff;
-            border-radius: 2px;
-            width: 0%;
-            transition: width 0.3s ease;
         }
 
         .loading-text {
@@ -306,11 +310,13 @@
             <h2 class="mobile-only" style="color: #BBB">Strange sounds from afar arrive on Britain’s shores, carried upon the</h2>
             <h1 class="mobile-only fit-letterspacing" id="mobileTitle2" style="color: #FFF">Ether Ocean</h1>
             
-            <!-- Loading Bar -->
-            <div class="loading-bar" id="loadingBar">
-                <div class="loading-progress" id="loadingProgress"></div>
+            <!-- Loading Indicator -->
+            <div class="loading-indicator" id="loadingIndicator">
+                <div class="loading-circle" id="circle1"></div>
+                <div class="loading-circle" id="circle2"></div>
+                <div class="loading-circle" id="circle3"></div>
+                <div class="loading-circle" id="circle4"></div>
             </div>
-            <div class="loading-text" id="loadingText">Loading audio...</div>
             
             <button class="start-btn" id="startBtn">Tune In</button>
         </div>
