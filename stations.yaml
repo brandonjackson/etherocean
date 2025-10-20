@@ -89,8 +89,8 @@ stations:
     description: "Albeniz recording"
     src: "granada.mp3"
     archive: "https://www.youtube.com/watch?v=uua_3tVK2rY"
-    position: 89.5
-    strength: 0.6
+    position: 89.7
+    strength: 0.8
     sigma: 0.5
   - id: "morse-code-interference"
     title: "Morse Code Interference"

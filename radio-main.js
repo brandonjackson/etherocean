@@ -46,9 +46,6 @@ class RadioController {
             console.log('Audio power state:', isOn);
             
             if (isOn) {
-                // Hide the start button
-                startBtn.style.display = 'none';
-                
                 // Update mixing for current dial position
                 this.audio.onDialPositionChange(this.ui.getDialPosition());
             }

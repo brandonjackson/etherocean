@@ -26,7 +26,7 @@
             letter-spacing: 0.12em;
             color: inherit; /* let inline or container color win */
             margin: 0;
-            padding: 10px 0px;
+            padding: 5px 0px;
             text-align: center;
         }
         h2 {
@@ -50,17 +50,19 @@
             justify-content: center;
             align-items: center;
             z-index: 2000;
-            transition: opacity 0.6s ease;
+            /* Do not fade the overlay itself; fade its contents */
         }
-        .overlay.hidden {
-            opacity: 0;
-            visibility: hidden;
-        }
+        .overlay.hidden { visibility: hidden; display: none; }
 
-        /* Overlay content width: desktop fixed, mobile responsive */
+        /* Overlay content width + fade */
         .overlay-content {
             width: 670px;
             margin: 0 auto;
+            transition: opacity 2s ease;
+        }
+        .overlay-content.fading { opacity: 0; }
+        .overlay h2 {
+            padding-bottom: 7px; 
         }
         @media (max-width: 768px) {
             .overlay-content {
@@ -126,7 +128,10 @@
             justify-content: center;
             text-align: center;
         }
-        .top-section h2 { color: #999; }
+        .top-section h2 { 
+            color: #666;
+            font-size: 24px;
+        }
 
         /* Responsive typography: scale down on mobile */
         @media (max-width: 768px) {
@@ -150,6 +155,9 @@
             .desktop-only { display: none; }
             .mobile-only { display: block; }
         }
+
+        /* Prevent wrap so we can compute per-character letter-spacing on mobile */
+        .fit-letterspacing { white-space: nowrap; }
 
         .dial-wrapper {
             width: 650px; /* desktop and mobile width */
@@ -265,9 +273,9 @@
             <h1 class="desktop-only" style="color: #FFF">The Ether Ocean</h1>
 
             <!-- Mobile copy -->
-            <h1 class="mobile-only" style="color: #BBB">November 1925</h1>
+            <h1 class="mobile-only fit-letterspacing" id="mobileTitle1" style="color: #BBB">November 1925</h1>
             <h2 class="mobile-only" style="color: #BBB">Strange sounds from foreign lands arrive on Britain’s shores, carried upon the</h2>
-            <h1 class="mobile-only" style="color: #FFF">Ether Ocean</h1>
+            <h1 class="mobile-only fit-letterspacing" id="mobileTitle2" style="color: #FFF">Ether Ocean</h1>
             <button class="start-btn" id="startBtn">Tune In</button>
         </div>
     </div>
@@ -418,9 +426,51 @@
             const overlay = document.getElementById('titleOverlay');
             if (startBtn && overlay) {
                 startBtn.addEventListener('click', function() {
-                    overlay.classList.add('hidden');
+                    // Fade only overlay contents over 2s, keep overlay visible
+                    const content = overlay.querySelector('.overlay-content');
+                    if (content) {
+                        content.classList.add('fading');
+                    }
+                    setTimeout(function() {
+                        overlay.classList.add('hidden');
+                        // Do not remove fading before hide to avoid flash
+                    }, 2000);
                 });
             }
+
+            // Mobile letter-spacing fitter for mobile-only h1s
+            function fitMobileHeadings() {
+                const container = document.querySelector('.overlay-content');
+                if (!container) return;
+                const isMobile = window.matchMedia('(max-width: 768px)').matches;
+                const targets = [
+                    document.getElementById('mobileTitle1'),
+                    document.getElementById('mobileTitle2')
+                ];
+                targets.forEach((el) => {
+                    if (!el) return;
+                    // Reset spacing first
+                    el.style.letterSpacing = '';
+                    el.style.wordSpacing = '';
+                    if (!isMobile) return; // Only fit on mobile
+                    // Measure available width and current text width
+                    const available = container.clientWidth;
+                    const currentWidth = el.scrollWidth;
+                    if (available <= 0 || currentWidth <= 0) return;
+                    // Estimate per-character extra spacing needed
+                    const text = el.textContent || '';
+                    const numGaps = Math.max(text.length - 1, 1);
+                    const delta = available - currentWidth;
+                    if (delta <= 0) return; // don't shrink
+                    const perGap = delta / numGaps;
+                    // Apply letter-spacing; cap to a reasonable value
+                    const capped = Math.min(perGap, 8);
+                    el.style.letterSpacing = capped + 'px';
+                });
+            }
+
+            fitMobileHeadings();
+            window.addEventListener('resize', fitMobileHeadings);
         });
     </script>
     

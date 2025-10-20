@@ -13,7 +13,7 @@ class RadioAudio {
         this.maxEtherNoiseVolume = 0.3;
         this.etherBaselineVolume = 0.3;  // Volume multiplier for baseline noise
         this.etherAMStaticVolume = 0.8;  // Volume multiplier for AM static noise
-        this.startupFadeDuration = 5.0; // Fade-in duration in seconds
+        this.startupFadeDuration = 2; // Fade-in duration in seconds
         this.masterVolume = 0; // Master volume control
         
         // Whistle Configuration
