@@ -5,6 +5,7 @@ class RadioController {
         // Initialize UI and Audio systems
         this.ui = new RadioUI();
         this.audio = new RadioAudio();
+        this.messages = new MessageSystem();
         
         // Connect UI changes to audio system
         this.ui.setDialChangeCallback((dialPosition) => {
@@ -138,6 +139,23 @@ window.setWhistleConfig = function(config) {
 // Initialize the radio when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     window.radioController = new RadioController();
+    
+    // Initialize message system after DOM is ready
+    if (window.radioController.messages) {
+        console.log('Starting message system initialization...');
+        window.radioController.messages.initialize();
+    } else {
+        console.error('Message system not found in radio controller');
+    }
+    
+    // Fallback: Set a default message if nothing else works
+    setTimeout(() => {
+        const messageElement = document.getElementById('messageText');
+        if (messageElement && messageElement.textContent === 'Loading...') {
+            console.log('Setting fallback message');
+            messageElement.textContent = 'Tune in using the dial below';
+        }
+    }, 2000);
 });
 
 // Handle page visibility changes to pause/resume audio
