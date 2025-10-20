@@ -410,16 +410,18 @@ class RadioAudio {
     }
 
     async createStationTracks() {
-        console.log(`Creating ${this.stations.length} station tracks...`);
+        console.log(`Creating ${this.stations.length} station tracks with streaming...`);
         
         for (const station of this.stations) {
             try {
-                const audioBuffer = await this.loadAudioFile(`sounds/${station.src}`);
-                const track = this.createAudioTrack(audioBuffer, true); // Loop enabled
+                const track = this.createStreamingTrack(station);
                 this.stationTracks.set(station.id, track);
-                console.log(`✓ ${station.id} loaded (${audioBuffer.duration.toFixed(1)}s)`);
+                
+                // Wait for metadata to be ready
+                await track.waitForReady();
+                console.log(`✓ ${station.id} ready for streaming`);
             } catch (error) {
-                console.error(`✗ Failed to load ${station.id}:`, error.message);
+                console.error(`✗ Failed to create streaming track for ${station.id}:`, error.message);
             }
         }
         
@@ -458,19 +460,76 @@ class RadioAudio {
         return await this.audioContext.decodeAudioData(arrayBuffer);
     }
 
-    createAudioTrack(audioBuffer, loop = false) {
-        // Don't create the source yet - BufferSource can only be started once
-        // We'll create it when we actually start playing
+    createStreamingTrack(station) {
+        // Create HTML audio element for streaming
+        const audioEl = new Audio(`sounds/${station.src}`);
+        audioEl.preload = 'metadata'; // Load headers but not full audio
+        audioEl.loop = true;
         
-        const audioContext = this.audioContext; // Capture reference
+        // Create MediaElementSourceNode
+        const sourceNode = this.audioContext.createMediaElementSource(audioEl);
+        const gainNode = this.audioContext.createGain();
+        
+        // Connect to master bus
+        if (this.masterBus) {
+            sourceNode.connect(gainNode).connect(this.masterBus);
+        } else {
+            sourceNode.connect(gainNode).connect(this.audioContext.destination);
+        }
+        
+        return {
+            audioEl,      // HTML audio element
+            sourceNode,   // MediaElementSourceNode
+            gainNode,     // Volume control
+            isPlaying: false,
+            isReady: false,
+            stationId: station.id,
+            
+            // Wait for metadata to be ready
+            waitForReady: function() {
+                return new Promise((resolve) => {
+                    if (this.isReady) {
+                        resolve();
+                        return;
+                    }
+                    audioEl.addEventListener('loadedmetadata', () => {
+                        this.isReady = true;
+                        resolve();
+                    }, { once: true });
+                });
+            },
+            
+            start: function() {
+                if (!this.isReady) {
+                    console.warn(`Station ${this.stationId} not ready yet`);
+                    return;
+                }
+                
+                if (this.isPlaying) return;
+                
+                this.audioEl.play().catch(error => {
+                    console.warn(`Failed to play station ${this.stationId}:`, error);
+                });
+                this.isPlaying = true;
+            },
+            
+            stop: function() {
+                if (!this.isPlaying) return;
+                
+                this.audioEl.pause();
+                this.isPlaying = false;
+            }
+        };
+    }
+
+    createAudioTrack(audioBuffer, loop = false) {
+        // Keep this method for noise tracks (they still use BufferSource)
+        const audioContext = this.audioContext;
         const gainNode = audioContext.createGain();
         
-        // Route through master bus for unified processing
         if (this.masterBus) {
-            console.log('Routing audio through master bus');
             gainNode.connect(this.masterBus);
         } else {
-            console.log('Routing audio directly to destination (no master bus)');
             gainNode.connect(audioContext.destination);
         }
         
@@ -478,56 +537,33 @@ class RadioAudio {
             audioBuffer,
             loop,
             gainNode,
-            source: null, // Will be created when starting
+            source: null,
             
             start: function() {
                 try {
-                    console.log(`Starting track: audioContext state=${audioContext.state}`);
-                    
                     if (audioContext.state === 'suspended') {
-                        console.log('Audio context suspended, resuming...');
                         audioContext.resume();
                     }
                     
-                    // Create a new BufferSource each time we start
-                    console.log('Creating BufferSource...');
                     this.source = audioContext.createBufferSource();
-                    console.log('BufferSource created:', this.source);
-                    
                     this.source.buffer = this.audioBuffer;
                     this.source.loop = this.loop;
-                    
-                    // Connect the new source to the gain node
-                    console.log('Connecting source to gain node...');
                     this.source.connect(this.gainNode);
-                    console.log('Source connected successfully');
-                    
-                    // Start the source
-                    console.log('Starting source...');
                     this.source.start();
-                    console.log('Source started successfully');
-                    
-                    console.log(`Audio track started: ${this.audioBuffer.duration.toFixed(1)}s`);
                 } catch (error) {
-                    console.error('Failed to start audio track:', error);
-                    console.error('Error details:', {
-                        audioContextState: audioContext.state,
-                        hasSource: !!this.source,
-                        hasGainNode: !!this.gainNode,
-                        hasAudioBuffer: !!this.audioBuffer
-                    });
+                    console.error('Error starting audio track:', error);
                 }
             },
             
             stop: function() {
-                try {
-                    if (this.source) {
+                if (this.source) {
+                    try {
                         this.source.stop();
                         this.source.disconnect();
                         this.source = null;
+                    } catch (error) {
+                        console.error('Error stopping audio track:', error);
                     }
-                } catch (error) {
-                    console.error('Failed to stop audio track:', error);
                 }
             }
         };
@@ -544,7 +580,7 @@ class RadioAudio {
         return Math.max(0, Math.min(1, volume));
     }
 
-    // Mixing function - updates all track volumes based on dial position
+    // Mixing function - updates all track volumes based on dial position with top-K streaming
     updateMixing(dialPosition) {
         // Check if audio context is ready
         if (!this.audioContext || this.audioContext.state !== 'running') {
@@ -553,40 +589,49 @@ class RadioAudio {
         
         this.dialPosition = dialPosition;
         
-        let totalStationVolume = 0;
-        let maxStationVolume = 0;
-        
-        // First pass: calculate volumes and find the maximum
-        const stationVolumes = new Map();
+        // Calculate volumes for all stations
+        const stationVolumes = [];
         for (const station of this.stations) {
             const track = this.stationTracks.get(station.id);
             if (track) {
                 const volume = this.calculateStationVolume(station, dialPosition);
-                stationVolumes.set(station.id, volume);
-                totalStationVolume += volume;
-                maxStationVolume = Math.max(maxStationVolume, volume);
+                stationVolumes.push({
+                    id: station.id,
+                    volume: volume,
+                    track: track
+                });
             }
         }
         
-        // Calculate scaling factor to prevent total volume from being too high
-        let scaleFactor = 1.0;
-        if (totalStationVolume > 1.0) {
-            scaleFactor = 1.0 / totalStationVolume;
-        }
+        // Sort by volume (highest first) and get top K stations
+        stationVolumes.sort((a, b) => b.volume - a.volume);
+        const topK = stationVolumes.slice(0, 3); // Only play top 3 stations
+        const topKIds = new Set(topK.map(s => s.id));
         
-        // Second pass: apply scaled volumes to stations with master volume
-        for (const station of this.stations) {
-            const track = this.stationTracks.get(station.id);
-            if (track) {
-                const originalVolume = stationVolumes.get(station.id);
-                const scaledVolume = originalVolume * scaleFactor * this.masterVolume;
-                track.gainNode.gain.setValueAtTime(scaledVolume, this.audioContext.currentTime);
+        // Start/stop stations based on top-K selection
+        for (const stationData of stationVolumes) {
+            const { id, volume, track } = stationData;
+            const isTopK = topKIds.has(id);
+            const scaledVolume = isTopK ? volume * this.masterVolume : 0;
+            
+            // Only start/stop if track is ready
+            if (track.isReady) {
+                // Start/stop streaming based on top-K status
+                if (isTopK && !track.isPlaying) {
+                    track.start();
+                } else if (!isTopK && track.isPlaying) {
+                    track.stop();
+                }
             }
+            
+            // Set volume (0 for non-top-K stations)
+            track.gainNode.gain.setValueAtTime(scaledVolume, this.audioContext.currentTime);
         }
         
         // Calculate ether noise volume based on how "tuned in" we are
         // If we have strong station signals, reduce ether noise
         // If we have weak/no station signals, increase ether noise
+        const maxStationVolume = topK.length > 0 ? Math.max(...topK.map(s => s.volume)) : 0;
         const etherVolume = this.maxEtherNoiseVolume * (1 - maxStationVolume) * this.masterVolume;
         
         // Apply volume to both ether noise components
@@ -653,17 +698,10 @@ class RadioAudio {
     _startTracksAfterResume() {
         console.log('Starting audio tracks...');
         
-        // Start all station tracks
-        for (const [stationId, track] of this.stationTracks) {
-            if (track && track.start) {
-                track.start();
-                track.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-            } else {
-                console.warn(`Invalid station track for ${stationId}`);
-            }
-        }
+        // For streaming tracks, don't start all stations - let updateMixing handle top-K selection
+        // Tracks are already ready from createStationTracks()
         
-        // Start all noise tracks
+        // Start all noise tracks (these still use BufferSource)
         for (const [noiseType, track] of this.noiseTracks) {
             if (track && track.start) {
                 track.start();
@@ -716,14 +754,17 @@ class RadioAudio {
         this.isPoweredOn = false;
         console.log('Stopping all audio tracks...');
         
-        // Stop all station tracks
+        // Stop all station tracks (streaming tracks)
         for (const [stationId, track] of this.stationTracks) {
+            if (track.stop) {
+                track.stop(); // Pause the audio element
+            }
             if (track.gainNode) {
                 track.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
             }
         }
         
-        // Stop all noise tracks
+        // Stop all noise tracks (BufferSource tracks)
         for (const [noiseType, track] of this.noiseTracks) {
             if (track.gainNode) {
                 track.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
