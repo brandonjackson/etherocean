@@ -463,7 +463,7 @@ class RadioAudio {
     createStreamingTrack(station) {
         // Create HTML audio element for streaming
         const audioEl = new Audio(`sounds/${station.src}`);
-        audioEl.preload = 'metadata'; // Load headers but not full audio
+        audioEl.preload = 'auto'; // Preload full audio for instant playback
         audioEl.loop = true;
         
         // Create MediaElementSourceNode
@@ -485,30 +485,46 @@ class RadioAudio {
             isReady: false,
             stationId: station.id,
             
-            // Wait for metadata to be ready
+            // Wait for audio to be ready
             waitForReady: function() {
                 return new Promise((resolve) => {
                     if (this.isReady) {
                         resolve();
                         return;
                     }
-                    audioEl.addEventListener('loadedmetadata', () => {
+                    
+                    // Wait for canplaythrough event (audio is fully loaded and ready to play)
+                    const onReady = () => {
                         this.isReady = true;
                         resolve();
-                    }, { once: true });
+                    };
+                    
+                    if (audioEl.readyState >= 4) { // HAVE_ENOUGH_DATA
+                        onReady();
+                    } else {
+                        audioEl.addEventListener('canplaythrough', onReady, { once: true });
+                        // Fallback to loadeddata if canplaythrough doesn't fire
+                        audioEl.addEventListener('loadeddata', onReady, { once: true });
+                    }
                 });
             },
             
             start: function() {
-                if (!this.isReady) {
-                    console.warn(`Station ${this.stationId} not ready yet`);
-                    return;
-                }
-                
                 if (this.isPlaying) return;
                 
+                // Try to play even if not marked as ready (audio might be ready but event didn't fire)
                 this.audioEl.play().catch(error => {
-                    console.warn(`Failed to play station ${this.stationId}:`, error);
+                    if (!this.isReady) {
+                        console.warn(`Station ${this.stationId} not ready yet, retrying...`);
+                        // Retry after a short delay
+                        setTimeout(() => {
+                            this.audioEl.play().catch(err => {
+                                console.warn(`Failed to play station ${this.stationId} after retry:`, err);
+                            });
+                        }, 100);
+                    } else {
+                        console.warn(`Failed to play station ${this.stationId}:`, error);
+                    }
                 });
                 this.isPlaying = true;
             },
