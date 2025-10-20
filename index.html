@@ -18,48 +18,70 @@
             overflow: hidden;
         }
 
-        .header-section {
-            height: 50vh;
-            display: flex;
-            width: 680px;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            position: relative;
-            margin: 0 auto;
-        }
-        .header-section h1, .header-section h2{
-            font-weight: 100; 
-            text-align: justify;
-            padding: 8px 0;
-            margin: 0;
-        }
-
-        .title {
+        /* Global heading styles */
+        h1 {
+            font-weight: 100;
             text-transform: uppercase;
             font-size: 64px;
             letter-spacing: 0.12em;
-            color: #ffffff;
-            margin-bottom: 2rem;
+            color: inherit; /* let inline or container color win */
+            margin: 0;
+            padding: 10px 0px;
             text-align: center;
         }
-        .header-section h2 {
+        h2 {
+            font-weight: 100;
             font-size: 44px;
             letter-spacing: 0;
+            margin: 0;
+            text-align: justify;
+        }
+
+        /* Full-screen title overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            transition: opacity 0.6s ease;
+        }
+        .overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        /* Overlay content width: desktop fixed, mobile responsive */
+        .overlay-content {
+            width: 670px;
+            margin: 0 auto;
+        }
+        @media (max-width: 768px) {
+            .overlay-content {
+                width: 80%;
+            }
         }
 
         .start-btn {
-            background: #333333;
-            border: none;
+            background: transparent;
+            border: 1px solid #ffffff;
             border-radius: 25px;
             padding: 15px 30px;
-            color: white;
+            color: #ffffff;
+            letter-spacing: 0.1em;
             font-size: 16px;
+            text-transform: uppercase;
             cursor: pointer;
             transition: all 0.3s ease;
-            position: absolute;
-            bottom: 30%;
+            position: static; /* centered within overlay content */
+            margin: 20px auto 0 auto; /* top margin and centered */
+            display: block;
             opacity: 0;
             visibility: hidden;
         }
@@ -82,6 +104,69 @@
             align-items: center;
         }
 
+        /* Interface container anchored to bottom showing only top half of the dial */
+        .interface {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 50vh; /* occupy bottom half of viewport */
+            display: flex;
+            justify-content: center; /* horizontal centering */
+            align-items: flex-end;   /* anchor to bottom */
+            pointer-events: none; /* allow interactions only on inner dial */
+        }
+
+        /* Top content section (50% height) */
+        .top-section {
+            height: 50vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .top-section h2 { color: #999; }
+
+        /* Responsive typography: scale down on mobile */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 38px;
+                letter-spacing: 0.08em;
+            }
+            h2 {
+                font-size: 22px; /* keep smaller than h1 on mobile */
+            }
+            .start-btn {
+                font-size: 14px;
+                padding: 12px 22px;
+            }
+        }
+
+        /* Device-specific visibility helpers */
+        .desktop-only { display: block; }
+        .mobile-only { display: none; }
+        @media (max-width: 768px) {
+            .desktop-only { display: none; }
+            .mobile-only { display: block; }
+        }
+
+        .dial-wrapper {
+            width: 650px; /* desktop and mobile width */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none; /* container itself doesn't capture */
+        }
+
+        .dial-viewport {
+            position: relative;
+            width: 650px;
+            height: 325px; /* show top half of 650px dial */
+            overflow: hidden; /* hide bottom half */
+            pointer-events: none;
+        }
+
         .dial-pointer {
             position: relative;
             width: 0;
@@ -97,10 +182,14 @@
             width: 650px;
             height: 650px;
             cursor: pointer;
-            position: relative;
+            position: absolute; /* position within masked viewport */
+            left: 0;
+            right: 0;
             margin: 0 auto;
             transform-origin: center;
+            bottom: -325px; /* center at the bottom edge so top half shows */
             transition: transform 0.1s ease-out;
+            pointer-events: auto; /* enable interaction on the dial */
         }
 
         .main-dial img {
@@ -163,33 +252,39 @@
             display: none !important;
         }
 
-        .status-indicator {
-            text-align: center;
-            margin-top: 15px;
-            font-size: 14px;
-            color: #ffffff;
-        }
-
-        .status-indicator.on {
-            color: #2ecc71;
-        }
+        
     </style>
 </head>
 <body>
-    <div class="header-section">
-        <h1 class="title" style="color: #CCC">November — 1925</h1>
-        <h2 class="subtitle" style="color: #CCC">Strange sounds from foreign lands arrive on Britain’s shores, carried upon</h2>
-        <h1 class="title" style="color: #FFF">The Ether Ocean</h1>
-        <button class="start-btn" id="startBtn">Tune In</button>
+    <!-- Title Overlay -->
+    <div class="overlay" id="titleOverlay">
+        <div class="overlay-content">
+            <!-- Desktop copy -->
+            <h1 class="desktop-only" style="color: #BBB">November — 1925</h1>
+            <h2 class="desktop-only" style="color: #BBB">Strange sounds from foreign lands arrive on Britain’s shores, carried upon</h2>
+            <h1 class="desktop-only" style="color: #FFF">The Ether Ocean</h1>
+
+            <!-- Mobile copy -->
+            <h1 class="mobile-only" style="color: #BBB">November 1925</h1>
+            <h2 class="mobile-only" style="color: #BBB">Strange sounds from foreign lands arrive on Britain’s shores, carried upon the</h2>
+            <h1 class="mobile-only" style="color: #FFF">Ether Ocean</h1>
+            <button class="start-btn" id="startBtn">Tune In</button>
+        </div>
     </div>
     
-    <div class="dial-section">
-        <div class="dial-pointer" id="dialPointer"></div>
-        <div class="main-dial" id="mainDial">
-            <img src="img/dial.png" alt="Tuning Dial">
-        </div>
-        <div class="status-indicator" id="statusIndicator">
-            Radio Off
+    <div class="top-section">
+        <h2>Tune in using the dial below</h2>
+    </div>
+
+    <div class="interface">
+        <div class="dial-wrapper">
+            <div class="dial-pointer" id="dialPointer"></div>
+            <div class="dial-viewport">
+                <div class="main-dial" id="mainDial">
+                    <img src="img/dial.png" alt="Tuning Dial">
+                </div>
+            </div>
+            
         </div>
     </div>
     
@@ -317,6 +412,15 @@
             
             // Show console message about debug panel
             console.log('Press the D key to open/close debug panel');
+
+            // Hide the overlay once user clicks Tune In
+            const startBtn = document.getElementById('startBtn');
+            const overlay = document.getElementById('titleOverlay');
+            if (startBtn && overlay) {
+                startBtn.addEventListener('click', function() {
+                    overlay.classList.add('hidden');
+                });
+            }
         });
     </script>
     

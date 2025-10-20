@@ -31,18 +31,11 @@ class RadioController {
 
     setupStartButton() {
         const startBtn = document.getElementById('startBtn');
-        const statusIndicator = document.getElementById('statusIndicator');
         
         console.log('Setting up start button:', startBtn);
-        console.log('Status indicator:', statusIndicator);
         
         if (!startBtn) {
             console.error('Start button not found!');
-            return;
-        }
-        
-        if (!statusIndicator) {
-            console.error('Status indicator not found!');
             return;
         }
         
@@ -53,9 +46,6 @@ class RadioController {
             console.log('Audio power state:', isOn);
             
             if (isOn) {
-                statusIndicator.textContent = 'Radio On';
-                statusIndicator.classList.add('on');
-                
                 // Hide the start button
                 startBtn.style.display = 'none';
                 

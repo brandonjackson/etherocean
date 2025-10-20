@@ -52,22 +52,6 @@ stations:
     position: 35.0
     strength: 0.4
     sigma: 1.0 
-  - id: "spanish-music"
-    title: "Granada"
-    description: "Albeniz recording"
-    src: "granada.mp3"
-    archive: "https://www.youtube.com/watch?v=uua_3tVK2rY"
-    position: 40.0
-    strength: 0.6
-    sigma: 0.5
-  - id: "morse-code-interference"
-    title: "Morse Code Interference"
-    description: "from BBC"
-    src: "bbc_morse-code_07041169.mp3"
-    archive: "https://sound-effects.bbcrewind.co.uk/search?q=morse"
-    position: 42.0
-    strength: 0.3
-    sigma: 1.0
   - id: "mozart-40"
     title: "Mozarts 40th Symphony"
     description: "Popular recording in Germany"
@@ -100,5 +84,19 @@ stations:
     position: 60.0
     strength: 0.4
     sigma: 1.0
-
-
+  - id: "spanish-music"
+    title: "Granada"
+    description: "Albeniz recording"
+    src: "granada.mp3"
+    archive: "https://www.youtube.com/watch?v=uua_3tVK2rY"
+    position: 89.5
+    strength: 0.6
+    sigma: 0.5
+  - id: "morse-code-interference"
+    title: "Morse Code Interference"
+    description: "from BBC"
+    src: "bbc_morse-code_07041169.mp3"
+    archive: "https://sound-effects.bbcrewind.co.uk/search?q=morse"
+    position: 92.0
+    strength: 0.3
+    sigma: 1.0

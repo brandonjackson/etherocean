@@ -19,10 +19,10 @@ class RadioUI {
         // Arrow key events
         document.addEventListener('keydown', (e) => this.handleKeyPress(e));
         
-        // Touch events for mobile
-        mainDial.addEventListener('touchstart', (e) => this.startDialDrag(e));
-        document.addEventListener('touchmove', (e) => this.handleTouchDrag(e));
-        document.addEventListener('touchend', () => this.stopDialDrag());
+        // Touch events for mobile (non-passive because we call preventDefault)
+        mainDial.addEventListener('touchstart', (e) => this.startDialDrag(e), { passive: false });
+        document.addEventListener('touchmove', (e) => this.handleTouchDrag(e), { passive: false });
+        document.addEventListener('touchend', () => this.stopDialDrag(), { passive: true });
     }
 
     handleKeyPress(event) {
