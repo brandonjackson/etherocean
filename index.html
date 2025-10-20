@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vintage Radio Simulator</title>
     <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Courier New', monospace;
+            font-family: 'Gill Sans', 'Gill Sans MT', 'Cabin', Calibri, 'Trebuchet MS', sans-serif;
+            font-weight: 100;
             background: #000000;
             margin: 0;
             padding: 0;
@@ -19,19 +21,31 @@
         .header-section {
             height: 50vh;
             display: flex;
+            width: 680px;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
             position: relative;
         }
+        .header-section h1, .header-section h2{
+            font-weight: 100; 
+            text-align: justify;
+            padding: 8px 0;
+            margin: 0;
+        }
 
         .title {
-            font-family: 'Pinyon Script', cursive;
-            font-size: 3rem;
+            text-transform: uppercase;
+            font-size: 64px;
+            letter-spacing: 0.12em;
             color: #ffffff;
             margin-bottom: 2rem;
             text-align: center;
+        }
+        .header-section h2 {
+            font-size: 44px;
+            letter-spacing: 0;
         }
 
         .start-btn {
@@ -40,8 +54,6 @@
             border-radius: 25px;
             padding: 15px 30px;
             color: white;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
             font-size: 16px;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -107,7 +119,7 @@
             border-radius: 8px;
             padding: 20px;
             color: white;
-            font-family: 'Courier New', monospace;
+            font-family: 'Gill Sans', 'Gill Sans MT', 'Cabin', Calibri, 'Trebuchet MS', sans-serif;
             font-size: 12px;
             max-width: 300px;
             z-index: 1000;
@@ -164,8 +176,10 @@
 </head>
 <body>
     <div class="header-section">
-        <h1 class="title">Which Station Was That?</h1>
-        <button class="start-btn" id="startBtn">Start</button>
+        <h1 class="title" style="color: #CCC">November — 1925</h1>
+        <h2 class="subtitle" style="color: #CCC">Strange sounds from foreign lands arrive on Britain’s shores, carried upon</h2>
+        <h1 class="title" style="color: #FFF">The Ether Ocean</h1>
+        <button class="start-btn" id="startBtn">Tune In</button>
     </div>
     
     <div class="dial-section">
