@@ -97,6 +97,6 @@ stations:
     description: "from BBC"
     src: "bbc_morse-code_07041169.mp3"
     archive: "https://sound-effects.bbcrewind.co.uk/search?q=morse"
-    position: 92.0
-    strength: 0.3
+    position: 91.0
+    strength: 0.2
     sigma: 1.0
