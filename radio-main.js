@@ -16,13 +16,49 @@ class RadioController {
             this.showStartButton();
         });
         
+        // Set up progress callback
+        this.audio.setProgressCallback((progress) => {
+            this.updateLoadingProgress(progress);
+        });
+        
+        // Show loading bar initially
+        this.showLoadingBar();
+        
         // Setup start button
         this.setupStartButton();
     }
 
+    showLoadingBar() {
+        const loadingBar = document.getElementById('loadingBar');
+        const loadingText = document.getElementById('loadingText');
+        const startBtn = document.getElementById('startBtn');
+        
+        if (loadingBar) loadingBar.style.display = 'block';
+        if (loadingText) loadingText.style.display = 'block';
+        if (startBtn) startBtn.style.display = 'none';
+        
+        // Start progress animation
+        this.updateLoadingProgress(0);
+    }
+    
+    updateLoadingProgress(percent) {
+        const progress = document.getElementById('loadingProgress');
+        if (progress) {
+            progress.style.width = percent + '%';
+        }
+    }
+    
     showStartButton() {
+        // Hide loading bar
+        const loadingBar = document.getElementById('loadingBar');
+        const loadingText = document.getElementById('loadingText');
+        if (loadingBar) loadingBar.style.display = 'none';
+        if (loadingText) loadingText.style.display = 'none';
+        
+        // Show start button
         const startBtn = document.getElementById('startBtn');
         if (startBtn) {
+            startBtn.style.display = 'block';
             // Add visible class to trigger fade-in
             startBtn.classList.add('visible');
             console.log('Start button faded in');

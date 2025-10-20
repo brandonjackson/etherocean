@@ -327,6 +327,10 @@ class RadioAudio {
     setInitializationCallback(callback) {
         this.onInitializationComplete = callback;
     }
+    
+    setProgressCallback(callback) {
+        this.onProgressUpdate = callback;
+    }
 
     async initializeAudio() {
         try {
@@ -422,10 +426,17 @@ class RadioAudio {
     async createStationTracks() {
         console.log(`Creating ${this.stations.length} station tracks with streaming...`);
         
-        for (const station of this.stations) {
+        for (let i = 0; i < this.stations.length; i++) {
+            const station = this.stations[i];
             try {
                 const track = this.createStreamingTrack(station);
                 this.stationTracks.set(station.id, track);
+                
+                // Update progress
+                const progress = Math.round(((i + 1) / this.stations.length) * 100);
+                if (this.onProgressUpdate) {
+                    this.onProgressUpdate(progress);
+                }
                 
                 // Wait for metadata to be ready with timeout
                 await Promise.race([

@@ -101,6 +101,32 @@
             transform: scale(1.05);
         }
 
+        .loading-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        .loading-progress {
+            height: 100%;
+            background: #ffffff;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .loading-text {
+            color: #BBB;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+
         .dial-section {
             /* height: 50vh; */
             display: flex;
@@ -279,6 +305,13 @@
             <h1 class="mobile-only fit-letterspacing" id="mobileTitle1" style="color: #BBB">November 1925</h1>
             <h2 class="mobile-only" style="color: #BBB">Strange sounds from afar arrive on Britain’s shores, carried upon the</h2>
             <h1 class="mobile-only fit-letterspacing" id="mobileTitle2" style="color: #FFF">Ether Ocean</h1>
+            
+            <!-- Loading Bar -->
+            <div class="loading-bar" id="loadingBar">
+                <div class="loading-progress" id="loadingProgress"></div>
+            </div>
+            <div class="loading-text" id="loadingText">Loading audio...</div>
+            
             <button class="start-btn" id="startBtn">Tune In</button>
         </div>
     </div>
