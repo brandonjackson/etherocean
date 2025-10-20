@@ -32,8 +32,14 @@ class RadioController {
         const loadingIndicator = document.getElementById('loadingIndicator');
         const startBtn = document.getElementById('startBtn');
         
-        if (loadingIndicator) loadingIndicator.style.display = 'flex';
-        if (startBtn) startBtn.style.display = 'none';
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'flex';
+            loadingIndicator.classList.add('visible');
+        }
+        if (startBtn) {
+            startBtn.style.display = 'none';
+            startBtn.classList.remove('visible');
+        }
         
         // Start with no circles active
         this.updateLoadingProgress(0);
@@ -61,11 +67,13 @@ class RadioController {
     }
     
     showStartButton() {
-        // Hide loading indicator
+        // Hide loading indicator instantly
         const loadingIndicator = document.getElementById('loadingIndicator');
-        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+        }
         
-        // Show start button
+        // Show start button instantly
         const startBtn = document.getElementById('startBtn');
         if (startBtn) {
             startBtn.style.display = 'block';

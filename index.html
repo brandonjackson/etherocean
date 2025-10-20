@@ -84,9 +84,7 @@
             text-transform: uppercase;
             cursor: pointer;
             transition: all 0.3s ease;
-            position: static; /* centered within overlay content */
-            margin: 20px auto 0 auto; /* top margin and centered */
-            display: block;
+            display: none;
             opacity: 0;
             visibility: hidden;
         }
@@ -101,14 +99,29 @@
             transform: scale(1.05);
         }
 
+        .loading-button-container {
+            height: 60px; /* Fixed height to prevent layout shifts */
+            margin: 20px auto 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
         .loading-indicator {
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 12px;
-            margin: 20px auto 0 auto;
-            padding: 15px 30px;
             display: none;
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        .loading-indicator.visible {
+            display: flex;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 1s ease-in;
         }
 
         .loading-circle {
@@ -120,7 +133,7 @@
         }
 
         .loading-circle.active {
-            background: #ffffff;
+            background: #BBB;
         }
 
         .loading-text {
@@ -310,15 +323,18 @@
             <h2 class="mobile-only" style="color: #BBB">Strange sounds from afar arrive on Britain’s shores, carried upon the</h2>
             <h1 class="mobile-only fit-letterspacing" id="mobileTitle2" style="color: #FFF">Ether Ocean</h1>
             
-            <!-- Loading Indicator -->
-            <div class="loading-indicator" id="loadingIndicator">
-                <div class="loading-circle" id="circle1"></div>
-                <div class="loading-circle" id="circle2"></div>
-                <div class="loading-circle" id="circle3"></div>
-                <div class="loading-circle" id="circle4"></div>
+            <!-- Loading/Button Container -->
+            <div class="loading-button-container">
+                <!-- Loading Indicator -->
+                <div class="loading-indicator" id="loadingIndicator">
+                    <div class="loading-circle" id="circle1"></div>
+                    <div class="loading-circle" id="circle2"></div>
+                    <div class="loading-circle" id="circle3"></div>
+                    <div class="loading-circle" id="circle4"></div>
+                </div>
+                
+                <button class="start-btn" id="startBtn">Tune In</button>
             </div>
-            
-            <button class="start-btn" id="startBtn">Tune In</button>
         </div>
     </div>
     
