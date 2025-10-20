@@ -353,6 +353,10 @@ class RadioAudio {
             }
         } catch (error) {
             console.error('Web Audio API not supported:', error);
+            // Still show start button even if audio fails
+            if (this.onInitializationComplete) {
+                this.onInitializationComplete();
+            }
         }
     }
 
@@ -362,7 +366,13 @@ class RadioAudio {
             const yamlText = await response.text();
             // For now, we'll parse a simplified format. In production, use a proper YAML parser
             this.stations = this.parseStationsYaml(yamlText);
-            await this.createStationTracks();
+            
+            // Create tracks with Safari mobile fallback
+            try {
+                await this.createStationTracks();
+            } catch (error) {
+                console.warn('Some tracks failed to load, continuing anyway:', error);
+            }
         } catch (error) {
             console.error('Failed to load stations:', error);
         }
@@ -417,11 +427,21 @@ class RadioAudio {
                 const track = this.createStreamingTrack(station);
                 this.stationTracks.set(station.id, track);
                 
-                // Wait for metadata to be ready
-                await track.waitForReady();
+                // Wait for metadata to be ready with timeout
+                await Promise.race([
+                    track.waitForReady(),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout')), 5000)
+                    )
+                ]);
                 console.log(`✓ ${station.id} ready for streaming`);
             } catch (error) {
                 console.error(`✗ Failed to create streaming track for ${station.id}:`, error.message);
+                // Mark as ready anyway to prevent blocking
+                const track = this.stationTracks.get(station.id);
+                if (track) {
+                    track.isReady = true;
+                }
             }
         }
         
@@ -463,7 +483,7 @@ class RadioAudio {
     createStreamingTrack(station) {
         // Create HTML audio element for streaming
         const audioEl = new Audio(`sounds/${station.src}`);
-        audioEl.preload = 'auto'; // Preload full audio for instant playback
+        audioEl.preload = 'metadata'; // Safari mobile compatible
         audioEl.loop = true;
         
         // Create MediaElementSourceNode
@@ -493,19 +513,39 @@ class RadioAudio {
                         return;
                     }
                     
-                    // Wait for canplaythrough event (audio is fully loaded and ready to play)
+                    // Safari mobile compatible ready check
                     const onReady = () => {
                         this.isReady = true;
                         resolve();
                     };
                     
-                    if (audioEl.readyState >= 4) { // HAVE_ENOUGH_DATA
+                    // Check if already ready
+                    if (audioEl.readyState >= 3) { // HAVE_FUTURE_DATA or higher
                         onReady();
-                    } else {
-                        audioEl.addEventListener('canplaythrough', onReady, { once: true });
-                        // Fallback to loadeddata if canplaythrough doesn't fire
-                        audioEl.addEventListener('loadeddata', onReady, { once: true });
+                        return;
                     }
+                    
+                    // Listen for multiple events for better Safari compatibility
+                    const events = ['loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough'];
+                    let resolved = false;
+                    
+                    const cleanup = () => {
+                        events.forEach(event => {
+                            audioEl.removeEventListener(event, onReady);
+                        });
+                    };
+                    
+                    const onReadyOnce = () => {
+                        if (!resolved) {
+                            resolved = true;
+                            cleanup();
+                            onReady();
+                        }
+                    };
+                    
+                    events.forEach(event => {
+                        audioEl.addEventListener(event, onReadyOnce, { once: true });
+                    });
                 });
             },
             
