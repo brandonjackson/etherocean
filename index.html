@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vintage Radio Simulator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000000;
+            margin: 0;
+            padding: 0;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header-section {
+            height: 50vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .title {
+            font-family: 'Pinyon Script', cursive;
+            font-size: 3rem;
+            color: #ffffff;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .start-btn {
+            background: #333333;
+            border: none;
+            border-radius: 25px;
+            padding: 15px 30px;
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: absolute;
+            bottom: 30%;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .start-btn.visible {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 1s ease-in;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .dial-section {
+            /* height: 50vh; */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dial-pointer {
+            position: relative;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 16px solid #ffffff;
+            margin: 0 auto 20px auto;
+            z-index: 10;
+        }
+
+        .main-dial {
+            width: 650px;
+            height: 650px;
+            cursor: pointer;
+            position: relative;
+            margin: 0 auto;
+            transform-origin: center;
+            transition: transform 0.1s ease-out;
+        }
+
+        .main-dial img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none; /* Prevents image from capturing mouse events */
+        }
+
+        /* Debug Panel Styles */
+        .debug-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+
+        .debug-panel h3 {
+            margin: 0 0 15px 0;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .debug-controls label {
+            display: block;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+
+        .debug-controls input[type="range"] {
+            width: 120px;
+            margin: 0 8px;
+        }
+
+        .debug-controls button {
+            background: #333;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            color: white;
+            margin: 5px 5px 5px 0;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .debug-controls button:hover {
+            background: #555;
+        }
+
+        /* Debug panel starts visible but can be hidden */
+        .debug-panel.hidden {
+            display: none !important;
+        }
+
+        .status-indicator {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #ffffff;
+        }
+
+        .status-indicator.on {
+            color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-section">
+        <h1 class="title">Which Station Was That?</h1>
+        <button class="start-btn" id="startBtn">Start</button>
+    </div>
+    
+    <div class="dial-section">
+        <div class="dial-pointer" id="dialPointer"></div>
+        <div class="main-dial" id="mainDial">
+            <img src="img/dial.png" alt="Tuning Dial">
+        </div>
+        <div class="status-indicator" id="statusIndicator">
+            Radio Off
+        </div>
+    </div>
+    
+    <!-- Debug Panel for Cabinet Effects -->
+    <div class="debug-panel hidden">
+        <h3>Cabinet Effects Debug</h3>
+        <div class="debug-controls">
+            <label>
+                <input type="checkbox" id="debugHighpass" checked> Enable High-Pass Filter
+            </label>
+            <br>
+            <label>
+                <input type="checkbox" id="debugLowpass" checked> Enable Low-Pass Filter
+            </label>
+            <br>
+            <label>
+                <input type="checkbox" id="debugReverb" checked> Enable Reverb
+            </label>
+            <br>
+            <label>
+                <input type="checkbox" id="debugTube" checked> Enable Tube Effects
+            </label>
+            <br>
+            <label>
+                <input type="checkbox" id="debugCabinet" checked> Enable Cabinet Effects
+            </label>
+            <br>
+            <button onclick="toggleDebugPanel()">Hide Debug</button>
+        </div>
+    </div>
+    
+    <script>
+        // Debug panel functions
+        function toggleDebugPanel() {
+            const panel = document.querySelector('.debug-panel');
+            const button = panel.querySelector('button');
+            const isHidden = panel.classList.contains('hidden');
+            
+            if (isHidden) {
+                panel.classList.remove('hidden');
+                button.textContent = 'Hide Debug';
+            } else {
+                panel.classList.add('hidden');
+                button.textContent = 'Show Debug';
+            }
+        }
+        
+        // Initialize debug controls when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up cabinet effect toggles
+            const debugHighpass = document.getElementById('debugHighpass');
+            const debugLowpass = document.getElementById('debugLowpass');
+            const debugReverb = document.getElementById('debugReverb');
+            const debugTube = document.getElementById('debugTube');
+            const debugCabinet = document.getElementById('debugCabinet');
+            
+            // Add event listeners for cabinet effect toggles
+            if (debugHighpass) {
+                debugHighpass.addEventListener('change', function() {
+                    if (window.radioController && window.radioController.audio && window.radioController.audio.cabinet) {
+                        window.radioController.audio.cabinet.updateHighpassEnabled(this.checked);
+                        // Reconnect master bus through cabinet
+                        window.radioController.audio.cabinet.reconnectMasterBus(
+                            window.radioController.audio.masterBus, 
+                            window.radioController.audio.audioContext.destination
+                        );
+                    }
+                });
+            }
+            
+            if (debugLowpass) {
+                debugLowpass.addEventListener('change', function() {
+                    if (window.radioController && window.radioController.audio && window.radioController.audio.cabinet) {
+                        window.radioController.audio.cabinet.updateLowpassEnabled(this.checked);
+                        window.radioController.audio.cabinet.reconnectMasterBus(
+                            window.radioController.audio.masterBus, 
+                            window.radioController.audio.audioContext.destination
+                        );
+                    }
+                });
+            }
+            
+            if (debugReverb) {
+                debugReverb.addEventListener('change', function() {
+                    if (window.radioController && window.radioController.audio && window.radioController.audio.cabinet) {
+                        window.radioController.audio.cabinet.updateReverbEnabled(this.checked);
+                        window.radioController.audio.cabinet.reconnectMasterBus(
+                            window.radioController.audio.masterBus, 
+                            window.radioController.audio.audioContext.destination
+                        );
+                    }
+                });
+            }
+            
+            if (debugTube) {
+                debugTube.addEventListener('change', function() {
+                    if (window.radioController && window.radioController.audio && window.radioController.audio.cabinet) {
+                        window.radioController.audio.cabinet.updateTubeEnabled(this.checked);
+                        window.radioController.audio.cabinet.reconnectMasterBus(
+                            window.radioController.audio.masterBus, 
+                            window.radioController.audio.audioContext.destination
+                        );
+                    }
+                });
+            }
+            
+            if (debugCabinet) {
+                debugCabinet.addEventListener('change', function() {
+                    if (window.radioController && window.radioController.audio && window.radioController.audio.cabinet) {
+                        window.radioController.audio.cabinet.updateCabinetEnabled(this.checked);
+                        window.radioController.audio.cabinet.reconnectMasterBus(
+                            window.radioController.audio.masterBus, 
+                            window.radioController.audio.audioContext.destination
+                        );
+                    }
+                });
+            }
+            
+            // Add keyboard shortcut for debug panel
+            document.addEventListener('keydown', function(event) {
+                if (event.key.toLowerCase() === 'd') {
+                    toggleDebugPanel();
+                }
+            });
+            
+            // Show console message about debug panel
+            console.log('Press the D key to open/close debug panel');
+        });
+    </script>
+    
+    <script src="radio-cabinet.js"></script>
+    <script src="radio-ui.js"></script>
+    <script src="radio-audio.js"></script>
+    <script src="radio-main.js"></script>
+</body>
+</html> 

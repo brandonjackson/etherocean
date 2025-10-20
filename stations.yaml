@@ -1,0 +1,104 @@
+stations:
+  - id: "alabamy-bound"
+    title: "Alabamy Bound"
+    description: "a popular song from 1925"
+    src: "alabamy-bound.mp3"
+    archive: ""
+    position: 4.0
+    strength: 0.8
+    sigma: 1.0 
+  - id: "morse"
+    title: "Morse Code"
+    description: "a common sound on the airwaves"
+    src: "morse.wav"
+    position: 10.0
+    strength: 0.5
+    sigma: 2.0 
+  - id: "shipping-forecast"
+    title: "Shipping Forecast"
+    description: "broadcast since 1925"
+    src: "shipping-forecast.mp3"
+    position: 16.0
+    strength: 0.8
+    sigma: 1.0 
+  - id: "time-signal"
+    title: "Time Signal"
+    description: "broadcast since 1912"
+    src: "time-signal.wav"
+    position: 21.0
+    strength: 0.4
+    sigma: 1.0 
+  - id: "wgy-fridge-ad"
+    title: "WGY Schenectedy fridge ad"
+    description: "This was a 1929 fridge ad from General Electric"
+    src: "WGY-fridge-NYSMUWGYD5B601.mp3"
+    archive: ""
+    position: 25.0
+    strength: 0.6
+    sigma: 1.0 
+  - id: "amateur-chat"  
+    title: "Amateur Chat"
+    description: "Chat between ham radio operators"
+    src: "amateur-chat-441697.mp3"
+    archive: "https://freesound.org/people/klankbeeld/sounds/441697/"
+    position: 30.0
+    strength: 0.6
+    sigma: 1.0 
+  - id: "noisy-polish-station"
+    title: "Garbled Polish Broadcast"
+    description: "Polish AM station"
+    src: "websdr_recording_start_2025-10-11T16_30_57Z_225.4kHz.wav"
+    archive: "http://websdr.ewi.utwente.nl:8901/"
+    position: 35.0
+    strength: 0.4
+    sigma: 1.0 
+  - id: "spanish-music"
+    title: "Granada"
+    description: "Albeniz recording"
+    src: "granada.mp3"
+    archive: "https://www.youtube.com/watch?v=uua_3tVK2rY"
+    position: 40.0
+    strength: 0.6
+    sigma: 0.5
+  - id: "morse-code-interference"
+    title: "Morse Code Interference"
+    description: "from BBC"
+    src: "bbc_morse-code_07041169.mp3"
+    archive: "https://sound-effects.bbcrewind.co.uk/search?q=morse"
+    position: 42.0
+    strength: 0.3
+    sigma: 1.0
+  - id: "mozart-40"
+    title: "Mozarts 40th Symphony"
+    description: "Popular recording in Germany"
+    src: "Mozart - Symphony No. 40 in G minor, K. 550 [complete] - Am4d3usM0z4rt (youtube).mp3"
+    archive: "Mozart - Symphony No. 40 in G minor, K. 550 [complete] - Am4d3usM0z4rt (youtube).mp3"
+    position: 45.0
+    strength: 0.7
+    sigma: 1.0
+  - id: "spanish-anthem"
+    title: "Spanish National Anthem"
+    description: "Spain España Spanien - Spain (Marcha Real) Himno Nacionales Nationale Hymne National Anthem"
+    src: "spanish-national-anthem.mp3"
+    archive: ""
+    position: 50.0
+    strength: 0.8
+    sigma: 1.0
+  - id: "bbc-electronic-interference"
+    title: "BBC Electronic Interference"
+    description: "Electronic interference from BBC archives"
+    src: "bbc_electronic_07069064.mp3"
+    archive: "https://sound-effects.bbcrewind.co.uk/search?q=electronic"
+    position: 55.0
+    strength: 0.5
+    sigma: 1.5
+  - id: "english-lesson-german"
+    title: "English Lesson for German Listeners"
+    description: "English language lesson broadcast for German audience"
+    src: "english-lesson-german.mp3"
+    archive: ""
+    position: 60.0
+    strength: 0.4
+    sigma: 1.0
+
+

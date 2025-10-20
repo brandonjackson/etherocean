@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+
+<!--
+WebAudio Radio Sandbox
+----------------------
+
+Purpose:
+A minimal in-browser sandbox for experimenting with Web Audio API effects 
+to emulate radio-style sound coloration. You can drag in an audio file and 
+tweak parameters like bandwidth, distortion, reverb, and output gain in real time.
+
+Key features:
+- Pure Vanilla JS (no frameworks)
+- Drag-and-drop or file upload support
+- Live spectrum analyzer
+- Adjustable highpass/lowpass filters, distortion, and reverb
+- Designed for quick prototyping of “radio tone” effects
+
+Intended use:
+Ideal for learning, creative sound design, or as a base for building more 
+complex radio/communication simulators (e.g., shortwave, AM, FM emulation).
+
+Author: Brandon Jackson
+-->
+
+
+
+<title>WebAudio Radio Sandbox</title>
+<style>
+  body {
+    font-family: sans-serif;
+    background: #111;
+    color: #eee;
+    margin: 0;
+    padding: 1em;
+  }
+  input[type="range"] {
+    width: 100%;
+  }
+  canvas {
+    width: 100%;
+    height: 100px;
+    background: #000;
+    display: block;
+    margin-top: 1em;
+  }
+  label { display:block; margin-top:0.5em; font-size:0.9em;}
+  .effect-group { 
+    border: 1px solid #333; 
+    padding: 0.5em; 
+    margin: 0.5em 0; 
+    border-radius: 4px;
+  }
+  .effect-group h3 { 
+    margin: 0 0 0.5em 0; 
+    font-size: 1em; 
+    color: #ccc;
+  }
+  input[type="checkbox"] { 
+    margin-right: 0.5em; 
+    transform: scale(1.2);
+  }
+  .value-display {
+    font-weight: bold;
+    color: #4CAF50;
+    background: #222;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+</style>
+</head>
+<body>
+
+<h2>🎙️ WebAudio Radio Sandbox</h2>
+<p><input type="file" id="fileInput" accept="audio/*"></p>
+<audio id="player" controls style="width:100%; margin-top:1em;"></audio>
+
+<canvas id="spectrum"></canvas>
+
+<div class="effect-group">
+  <h3>🎛️ Bandwidth Filters</h3>
+  <label><input type="checkbox" id="enableHighpass" checked> Enable High-Pass Filter</label>
+  <label>Low Cut (Hz): <input type="range" id="lowCut" min="100" max="1000" value="450" step="1"> <span id="lowCutValue" class="value-display">450</span> Hz</label>
+  <br>
+  <label><input type="checkbox" id="enableLowpass" checked> Enable Low-Pass Filter</label>
+  <label>High Cut (Hz): <input type="range" id="highCut" min="500" max="5000" value="3000" step="1"> <span id="highCutValue" class="value-display">3000</span> Hz</label>
+</div>
+
+
+<div class="effect-group">
+  <h3>🏛️ Reverb</h3>
+  <label><input type="checkbox" id="enableReverb" checked> Enable Reverb</label>
+  <label>Room Size: <input type="range" id="verbRoomSize" min="0.1" max="3" value="0.5" step="0.1"> <span id="verbRoomSizeValue" class="value-display">0.5</span></label>
+  <label>Decay Time: <input type="range" id="verbDecay" min="0.5" max="5" value="1.0" step="0.1"> <span id="verbDecayValue" class="value-display">1.0</span>s</label>
+  <label>Damping: <input type="range" id="verbDamping" min="0" max="1" value="1.0" step="0.01"> <span id="verbDampingValue" class="value-display">1.00</span></label>
+  <label>Reverb Mix: <input type="range" id="verbMix" min="0" max="1" value="0.3" step="0.01"> <span id="verbMixValue" class="value-display">0.30</span></label>
+</div>
+
+<div class="effect-group">
+  <h3>🔧 Tube Effects</h3>
+  <label><input type="checkbox" id="enableTube" checked> Enable Tube Effects</label>
+  <label>Tube Saturation: <input type="range" id="tubeSat" min="0" max="100" value="80" step="1"> <span id="tubeSatValue" class="value-display">80</span></label>
+  <label>Speaker Distortion: <input type="range" id="speakerDist" min="0" max="50" value="20" step="1"> <span id="speakerDistValue" class="value-display">20</span></label>
+</div>
+
+<div class="effect-group">
+  <h3>📦 Cabinet Effects</h3>
+  <label><input type="checkbox" id="enableCabinet" checked> Enable Cabinet Effects</label>
+  <label>Cabinet Resonance: <input type="range" id="cabinetFreq" min="0" max="500" value="70" step="1"> <span id="cabinetFreqValue" class="value-display">70</span> Hz</label>
+  <label>Cabinet Gain: <input type="range" id="cabinetGain" min="0" max="50" value="40" step="0.5"> <span id="cabinetGainValue" class="value-display">40.0</span> dB</label>
+  <label>Cabinet Q: <input type="range" id="cabinetQ" min="1" max="20" value="1.5" step="0.5"> <span id="cabinetQValue" class="value-display">1.5</span></label>
+</div>
+
+
+<div class="effect-group">
+  <h3>🎚️ Master</h3>
+  <label>Output Volume: <input type="range" id="volume" min="0" max="1.5" value="1" step="0.01"> <span id="volumeValue" class="value-display">1.00</span></label>
+</div>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const canvas = document.getElementById('spectrum');
+const ctx2d = canvas.getContext('2d');
+const player = document.getElementById('player');
+
+let audioCtx, source, analyser;
+let nodes = {};
+let mediaElementSource = null;
+
+function makeImpulse(ctx, seconds=2, decay=2.5, damping=0.3) {
+  const rate = ctx.sampleRate;
+  const len = seconds * rate;
+  const buf = ctx.createBuffer(2, len, rate);
+  for (let ch=0; ch<2; ch++) {
+    const data = buf.getChannelData(ch);
+    for (let i=0; i<len; i++) {
+      // Apply damping to high frequencies
+      const dampedDecay = decay + (damping * 2);
+      const envelope = Math.pow(1 - i/len, dampedDecay);
+      data[i] = (Math.random()*2-1) * envelope;
+    }
+  }
+  return buf;
+}
+
+function makeDistortionCurve(amount=20) {
+  const n = 44100;
+  const curve = new Float32Array(n);
+  const k = amount;
+  for (let i=0; i<n; i++) {
+    const x = i*2/n - 1;
+    curve[i] = ((3 + k)*x*20)/(Math.PI + k*Math.abs(x));
+  }
+  return curve;
+}
+
+function makeTubeSaturationCurve(amount=15) {
+  const n = 44100;
+  const curve = new Float32Array(n);
+  const k = amount / 100; // Normalize to 0-1
+  for (let i=0; i<n; i++) {
+    const x = i*2/n - 1;
+    // Soft tube saturation curve
+    curve[i] = Math.tanh(x * (1 + k * 3)) * (1 - k * 0.3);
+  }
+  return curve;
+}
+
+function makeSpeakerDistortionCurve(amount=8) {
+  const n = 44100;
+  const curve = new Float32Array(n);
+  const k = amount / 50; // Normalize to 0-1
+  for (let i=0; i<n; i++) {
+    const x = i*2/n - 1;
+    // Speaker cone distortion (asymmetric)
+    if (x > 0) {
+      curve[i] = x * (1 - k * 0.2) + k * 0.1 * Math.sin(x * Math.PI);
+    } else {
+      curve[i] = x * (1 - k * 0.4) + k * 0.2 * Math.sin(-x * Math.PI);
+    }
+  }
+  return curve;
+}
+
+function disconnectAllNodes() {
+  // Disconnect all existing nodes to prevent conflicts
+  if (nodes.highpass) nodes.highpass.disconnect();
+  if (nodes.lowpass) nodes.lowpass.disconnect();
+  if (nodes.wet) nodes.wet.disconnect();
+  if (nodes.dry) nodes.dry.disconnect();
+  if (nodes.master) nodes.master.disconnect();
+  if (nodes.convolver) nodes.convolver.disconnect();
+  if (nodes.tubeSaturator) nodes.tubeSaturator.disconnect();
+  if (nodes.cabinetResonator) nodes.cabinetResonator.disconnect();
+  if (nodes.speakerDistortion) nodes.speakerDistortion.disconnect();
+  if (source) source.disconnect();
+}
+
+function setupGraph() {
+  if (!audioCtx) audioCtx = new AudioContext();
+  
+  // Disconnect all existing connections
+  disconnectAllNodes();
+  
+  // Create MediaElementSource only once
+  if (!mediaElementSource) {
+    mediaElementSource = audioCtx.createMediaElementSource(player);
+  }
+  source = mediaElementSource;
+
+  // Bandwidth filters
+  const highpass = audioCtx.createBiquadFilter();
+  highpass.type = "highpass";
+  const lowpass = audioCtx.createBiquadFilter();
+  lowpass.type = "lowpass";
+
+
+  // Reverb
+  const convolver = audioCtx.createConvolver();
+  const roomSize = parseFloat(document.getElementById('verbRoomSize').value);
+  const decayTime = parseFloat(document.getElementById('verbDecay').value);
+  const damping = parseFloat(document.getElementById('verbDamping').value);
+  convolver.buffer = makeImpulse(audioCtx, decayTime, 2.3, damping);
+  const wet = audioCtx.createGain();
+  const dry = audioCtx.createGain();
+
+  // Vintage Radio Effects
+  const tubeSaturator = audioCtx.createWaveShaper();
+  const cabinetResonator = audioCtx.createBiquadFilter();
+  const speakerDistortion = audioCtx.createWaveShaper();
+  
+  // Configure vintage effects
+  tubeSaturator.curve = makeTubeSaturationCurve(parseFloat(document.getElementById('tubeSat').value));
+  cabinetResonator.type = 'peaking';
+  cabinetResonator.frequency.value = parseFloat(document.getElementById('cabinetFreq').value);
+  cabinetResonator.Q.value = parseFloat(document.getElementById('cabinetQ').value);
+  cabinetResonator.gain.value = parseFloat(document.getElementById('cabinetGain').value);
+  speakerDistortion.curve = makeSpeakerDistortionCurve(parseFloat(document.getElementById('speakerDist').value));
+
+  // Master
+  const master = audioCtx.createGain();
+
+  // Analyser
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+
+  // Connect graph with bypass capability
+  let currentNode = source;
+  
+  // High-pass filter (can be bypassed)
+  if (document.getElementById('enableHighpass').checked) {
+    currentNode.connect(highpass);
+    currentNode = highpass;
+  }
+  
+  // Low-pass filter (can be bypassed)
+  if (document.getElementById('enableLowpass').checked) {
+    currentNode.connect(lowpass);
+    currentNode = lowpass;
+  }
+  
+  
+  // Reverb (can be bypassed)
+  if (document.getElementById('enableReverb').checked) {
+    currentNode.connect(dry);
+    currentNode.connect(convolver);
+  convolver.connect(wet);
+
+  const mix = audioCtx.createGain();
+  dry.connect(mix);
+  wet.connect(mix);
+    currentNode = mix;
+  } else {
+    // If reverb is off, connect dry signal directly
+    currentNode.connect(dry);
+    currentNode = dry;
+  }
+  
+  // Tube Effects (can be bypassed)
+  if (document.getElementById('enableTube').checked) {
+    currentNode.connect(tubeSaturator);
+    currentNode = tubeSaturator;
+  }
+  
+  // Speaker Distortion (always connected after tube)
+  currentNode.connect(speakerDistortion);
+  currentNode = speakerDistortion;
+  
+  // Cabinet Effects (can be bypassed)
+  if (document.getElementById('enableCabinet').checked) {
+    currentNode.connect(cabinetResonator);
+    currentNode = cabinetResonator;
+  }
+  
+  
+  currentNode.connect(master);
+  master.connect(analyser);
+  analyser.connect(audioCtx.destination);
+
+  // Save nodes
+  nodes = {highpass, lowpass, wet, dry, master, convolver, source, 
+           tubeSaturator, cabinetResonator, speakerDistortion};
+  
+  // Initialize reverb parameter tracking
+  nodes.lastDecayTime = decayTime;
+  nodes.lastDamping = damping;
+
+  drawSpectrum();
+}
+
+function drawSpectrum() {
+  const buffer = new Uint8Array(analyser.frequencyBinCount);
+  function draw() {
+    requestAnimationFrame(draw);
+    analyser.getByteFrequencyData(buffer);
+    ctx2d.fillStyle = '#000';
+    ctx2d.fillRect(0,0,canvas.width,canvas.height);
+    ctx2d.fillStyle = '#0f0';
+    const barW = canvas.width / buffer.length;
+    for (let i=0; i<buffer.length; i++) {
+      const h = buffer[i]/255 * canvas.height;
+      ctx2d.fillRect(i*barW, canvas.height-h, barW, h);
+    }
+  }
+  draw();
+}
+
+fileInput.onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  // Reset MediaElementSource when loading new file
+  if (mediaElementSource) {
+    mediaElementSource.disconnect();
+    mediaElementSource = null;
+  }
+  
+  // Disconnect all existing nodes
+  disconnectAllNodes();
+  
+  // Reset audio context
+  if (audioCtx) {
+    audioCtx.close();
+    audioCtx = null;
+  }
+  
+  const url = URL.createObjectURL(file);
+  player.src = url;
+  player.load();
+};
+
+// Audio context setup when player starts
+player.onplay = async () => {
+  if (!audioCtx) setupGraph();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+};
+
+// parameter bindings
+function updateParams() {
+  // Get DOM elements safely
+  const lowCut = document.getElementById('lowCut');
+  const highCut = document.getElementById('highCut');
+  const distAmt = document.getElementById('distAmt');
+  const verbMix = document.getElementById('verbMix');
+  const volume = document.getElementById('volume');
+  
+  // Update value displays (always works)
+  if (lowCut) document.getElementById('lowCutValue').textContent = lowCut.value;
+  if (highCut) document.getElementById('highCutValue').textContent = highCut.value;
+  if (distAmt) document.getElementById('distAmtValue').textContent = distAmt.value;
+  if (verbMix) document.getElementById('verbMixValue').textContent = parseFloat(verbMix.value).toFixed(2);
+  if (volume) document.getElementById('volumeValue').textContent = parseFloat(volume.value).toFixed(2);
+  
+  // Update reverb value displays
+  const verbRoomSize = document.getElementById('verbRoomSize');
+  const verbDecay = document.getElementById('verbDecay');
+  const verbDamping = document.getElementById('verbDamping');
+  
+  if (verbRoomSize) document.getElementById('verbRoomSizeValue').textContent = verbRoomSize.value;
+  if (verbDecay) document.getElementById('verbDecayValue').textContent = verbDecay.value;
+  if (verbDamping) document.getElementById('verbDampingValue').textContent = parseFloat(verbDamping.value).toFixed(2);
+  
+  // Update vintage effect value displays
+  const tubeSat = document.getElementById('tubeSat');
+  const cabinetFreq = document.getElementById('cabinetFreq');
+  const cabinetGain = document.getElementById('cabinetGain');
+  const cabinetQ = document.getElementById('cabinetQ');
+  const speakerDist = document.getElementById('speakerDist');
+  
+  if (tubeSat) document.getElementById('tubeSatValue').textContent = tubeSat.value;
+  if (cabinetFreq) document.getElementById('cabinetFreqValue').textContent = cabinetFreq.value;
+  if (cabinetGain) document.getElementById('cabinetGainValue').textContent = cabinetGain.value;
+  if (cabinetQ) document.getElementById('cabinetQValue').textContent = cabinetQ.value;
+  if (speakerDist) document.getElementById('speakerDistValue').textContent = speakerDist.value;
+  
+  // Only update audio parameters if audio context exists
+  if (!nodes.master) {
+    requestAnimationFrame(updateParams);
+    return;
+  }
+  
+  // Only update parameters for enabled effects
+  if (nodes.highpass && lowCut) nodes.highpass.frequency.value = parseFloat(lowCut.value);
+  if (nodes.lowpass && highCut) nodes.lowpass.frequency.value = parseFloat(highCut.value);
+  if (nodes.wet && verbMix) nodes.wet.gain.value = parseFloat(verbMix.value);
+  if (nodes.dry && verbMix) nodes.dry.gain.value = 1 - parseFloat(verbMix.value);
+  if (nodes.master && volume) nodes.master.gain.value = parseFloat(volume.value);
+  
+  // Update reverb parameters (requires graph rebuild for impulse response)
+  if (verbRoomSize && verbDecay && verbDamping) {
+    const roomSize = parseFloat(verbRoomSize.value);
+    const decayTime = parseFloat(verbDecay.value);
+    const damping = parseFloat(verbDamping.value);
+    
+    // Rebuild impulse response if parameters changed significantly
+    if (nodes.convolver && (Math.abs(decayTime - nodes.lastDecayTime) > 0.1 || 
+                           Math.abs(damping - nodes.lastDamping) > 0.01)) {
+      nodes.convolver.buffer = makeImpulse(audioCtx, decayTime, 2.3, damping);
+      nodes.lastDecayTime = decayTime;
+      nodes.lastDamping = damping;
+    }
+  }
+  
+  // Update vintage effect parameters
+  if (tubeSat && nodes.tubeSaturator) {
+    nodes.tubeSaturator.curve = makeTubeSaturationCurve(parseFloat(tubeSat.value));
+  }
+  if (cabinetFreq && cabinetQ && cabinetGain && nodes.cabinetResonator) {
+    nodes.cabinetResonator.frequency.value = parseFloat(cabinetFreq.value);
+    nodes.cabinetResonator.Q.value = parseFloat(cabinetQ.value);
+    nodes.cabinetResonator.gain.value = parseFloat(cabinetGain.value);
+  }
+  if (speakerDist && nodes.speakerDistortion) {
+    nodes.speakerDistortion.curve = makeSpeakerDistortionCurve(parseFloat(speakerDist.value));
+  }
+  
+  requestAnimationFrame(updateParams);
+}
+
+// Start parameter update loop
+updateParams();
+
+// Wait for DOM to be ready before setting up event listeners
+document.addEventListener('DOMContentLoaded', () => {
+  // Add event listeners for effect toggles
+  document.getElementById('enableHighpass').addEventListener('change', () => {
+    if (audioCtx && source) setupGraph();
+  });
+
+  document.getElementById('enableLowpass').addEventListener('change', () => {
+    if (audioCtx && source) setupGraph();
+  });
+
+
+  document.getElementById('enableReverb').addEventListener('change', () => {
+    if (audioCtx && source) setupGraph();
+  });
+
+  document.getElementById('enableTube').addEventListener('change', () => {
+    if (audioCtx && source) setupGraph();
+  });
+
+  document.getElementById('enableCabinet').addEventListener('change', () => {
+    if (audioCtx && source) setupGraph();
+  });
+
+});
+</script>
+</body>
+</html>
