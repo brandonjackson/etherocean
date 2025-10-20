@@ -10,7 +10,7 @@ stations:
   - id: "morse"
     title: "Morse Code"
     description: "a common sound on the airwaves"
-    src: "morse.wav"
+    src: "morse.mp3"
     position: 10.0
     strength: 0.5
     sigma: 2.0 
@@ -24,7 +24,7 @@ stations:
   - id: "time-signal"
     title: "Time Signal"
     description: "broadcast since 1912"
-    src: "time-signal.wav"
+    src: "time-signal.mp3"
     position: 21.0
     strength: 0.4
     sigma: 1.0 
@@ -89,9 +89,9 @@ stations:
     description: "Albeniz recording"
     src: "granada.mp3"
     archive: "https://www.youtube.com/watch?v=uua_3tVK2rY"
-    position: 89.7
+    position: 89.4
     strength: 0.8
-    sigma: 0.5
+    sigma: 1.0
   - id: "morse-code-interference"
     title: "Morse Code Interference"
     description: "from BBC"
