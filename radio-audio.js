@@ -352,14 +352,24 @@ class RadioAudio {
             console.log(`Audio initialized: ${this.stations.length} stations, ${this.stationTracks.size} tracks created`);
             
             // Notify that initialization is complete
+            console.log('=== Audio initialization complete, calling callback ===');
+            console.log('Callback function exists:', !!this.onInitializationComplete);
             if (this.onInitializationComplete) {
+                console.log('Calling initialization callback...');
                 this.onInitializationComplete();
+                console.log('Initialization callback called');
+            } else {
+                console.error('No initialization callback set!');
             }
         } catch (error) {
             console.error('Web Audio API not supported:', error);
+            console.log('=== Audio initialization failed, but showing start button anyway ===');
             // Still show start button even if audio fails
             if (this.onInitializationComplete) {
+                console.log('Calling initialization callback despite error...');
                 this.onInitializationComplete();
+            } else {
+                console.error('No initialization callback set for error case!');
             }
         }
     }

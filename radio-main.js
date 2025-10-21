@@ -14,6 +14,10 @@ class RadioController {
         
         // Set up initialization callback
         this.audio.setInitializationCallback(() => {
+            console.log('=== Audio initialization callback triggered ===');
+            console.log('Audio context state:', this.audio.audioContext ? this.audio.audioContext.state : 'No audio context');
+            console.log('Station tracks count:', this.audio.stationTracks ? this.audio.stationTracks.size : 'No station tracks');
+            console.log('About to call showStartButton()');
             this.showStartButton();
         });
         
@@ -68,20 +72,39 @@ class RadioController {
     }
     
     showStartButton() {
+        console.log('=== showStartButton() called ===');
+        
         // Hide loading indicator instantly
         const loadingIndicator = document.getElementById('loadingIndicator');
+        console.log('Loading indicator element:', loadingIndicator);
         if (loadingIndicator) {
+            console.log('Hiding loading indicator');
             loadingIndicator.style.display = 'none';
+        } else {
+            console.error('Loading indicator element not found!');
         }
         
         // Show start button instantly
         const startBtn = document.getElementById('startBtn');
+        console.log('Start button element:', startBtn);
+        console.log('Start button current display:', startBtn ? startBtn.style.display : 'N/A');
+        console.log('Start button current classes:', startBtn ? startBtn.className : 'N/A');
+        
         if (startBtn) {
+            console.log('Setting start button display to block');
             startBtn.style.display = 'block';
-            // Add visible class to trigger fade-in
+            console.log('Adding visible class to start button');
             startBtn.classList.add('visible');
+            console.log('Start button classes after adding visible:', startBtn.className);
+            console.log('Start button computed style display:', window.getComputedStyle(startBtn).display);
+            console.log('Start button computed style opacity:', window.getComputedStyle(startBtn).opacity);
+            console.log('Start button computed style visibility:', window.getComputedStyle(startBtn).visibility);
             console.log('Start button faded in');
+        } else {
+            console.error('Start button element not found!');
         }
+        
+        console.log('=== showStartButton() completed ===');
     }
 
     setupStartButton() {
@@ -156,6 +179,21 @@ document.addEventListener('DOMContentLoaded', () => {
             messageElement.textContent = 'Tune in using the dial below';
         }
     }, 2000);
+    
+    // Emergency fallback: Force show start button after 10 seconds
+    setTimeout(() => {
+        const startBtn = document.getElementById('startBtn');
+        if (startBtn && startBtn.style.display === 'none') {
+            console.log('=== EMERGENCY FALLBACK: Forcing start button to appear ===');
+            console.log('Start button current state:', {
+                display: startBtn.style.display,
+                className: startBtn.className,
+                computedDisplay: window.getComputedStyle(startBtn).display,
+                computedOpacity: window.getComputedStyle(startBtn).opacity
+            });
+            window.radioController.showStartButton();
+        }
+    }, 10000);
 });
 
 // Handle page visibility changes to pause/resume audio
