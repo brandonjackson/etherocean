@@ -1,9 +1,9 @@
 // Message configuration - edit these messages here
 const MESSAGES = [
-    { text: "Tune in using the dial below.", duration: 20 },
-    { text: "The whistling sound comes from interference between different stations.", duration: 20 },
-    { text: "There were so many stations changing so frequently that radios had to have a generic 0 - 180 scale.", duration: 20 },
-    { text: "The ether was unregulated—so official broadcasts were heard alongside amateurs.", duration: 20 }
+    { text: "Tune in using the dial below.", duration: 60 },
+    { text: "The whistling sound comes from interference between different stations.", duration: 60 },
+    { text: "There were so many stations changing so frequently that radios had to have a generic 0 - 180 scale.", duration: 60 },
+    { text: "The ether was unregulated—so official broadcasts were heard alongside amateurs.", duration: 60 }
 ];
 
 class MessageSystem {
@@ -27,8 +27,9 @@ class MessageSystem {
         if (this.messages.length > 0) {
             // Start with the first message
             this.showMessage(0);
-            // Don't start rotation yet - wait for overlay to be hidden
-            console.log(`Message system initialized with ${this.messages.length} messages (rotation paused until overlay hidden)`);
+            // Start the timer immediately for the first message
+            this.startMessageTimer();
+            console.log(`Message system initialized with ${this.messages.length} messages (timer started)`);
         } else {
             console.warn('No messages found, using fallback');
             this.messageElement.textContent = 'Tune in using the dial below';
@@ -61,16 +62,32 @@ class MessageSystem {
         }
     }
 
-    startRotation() {
-        console.log('Starting message rotation...');
+    startMessageTimer() {
+        console.log('Starting message timer...');
         if (this.interval) {
-            clearInterval(this.interval);
+            clearTimeout(this.interval);
         }
         
-        this.interval = setInterval(() => {
+        // Schedule next message based on current message's duration
+        const currentMessage = this.messages[this.currentIndex];
+        const durationMs = (currentMessage.duration || 10) * 1000;
+        console.log(`Message "${currentMessage.text}" will display for ${currentMessage.duration} seconds`);
+        
+        this.interval = setTimeout(() => {
             this.currentIndex = (this.currentIndex + 1) % this.messages.length;
             this.showMessage(this.currentIndex);
-        }, 10000); // 10 seconds
+            // Continue the timer for the next message
+            this.startMessageTimer();
+        }, durationMs);
+    }
+    
+    startRotation() {
+        console.log('Starting message rotation...');
+        // This method is called when overlay is hidden, but timer is already running
+        // Just ensure the timer is active
+        if (!this.interval) {
+            this.startMessageTimer();
+        }
     }
     
     startRotationWhenReady() {
@@ -81,7 +98,7 @@ class MessageSystem {
 
     stopRotation() {
         if (this.interval) {
-            clearInterval(this.interval);
+            clearTimeout(this.interval);
             this.interval = null;
         }
     }
