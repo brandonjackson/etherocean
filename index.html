@@ -492,6 +492,12 @@
                     setTimeout(function() {
                         overlay.classList.add('hidden');
                         // Do not remove fading before hide to avoid flash
+                        
+                        // Start message rotation when overlay is hidden
+                        if (window.radioController && window.radioController.messages) {
+                            console.log('Overlay hidden, starting message rotation');
+                            window.radioController.messages.startRotationWhenReady();
+                        }
                     }, 2000);
                 });
             }

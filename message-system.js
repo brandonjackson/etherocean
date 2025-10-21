@@ -27,9 +27,8 @@ class MessageSystem {
         if (this.messages.length > 0) {
             // Start with the first message
             this.showMessage(0);
-            // Start the rotation
-            this.startRotation();
-            console.log(`Message system initialized with ${this.messages.length} messages`);
+            // Don't start rotation yet - wait for overlay to be hidden
+            console.log(`Message system initialized with ${this.messages.length} messages (rotation paused until overlay hidden)`);
         } else {
             console.warn('No messages found, using fallback');
             this.messageElement.textContent = 'Tune in using the dial below';
@@ -63,6 +62,7 @@ class MessageSystem {
     }
 
     startRotation() {
+        console.log('Starting message rotation...');
         if (this.interval) {
             clearInterval(this.interval);
         }
@@ -71,6 +71,12 @@ class MessageSystem {
             this.currentIndex = (this.currentIndex + 1) % this.messages.length;
             this.showMessage(this.currentIndex);
         }, 10000); // 10 seconds
+    }
+    
+    startRotationWhenReady() {
+        console.log('Message rotation will start when overlay is hidden');
+        // This will be called when the overlay is hidden
+        this.startRotation();
     }
 
     stopRotation() {
