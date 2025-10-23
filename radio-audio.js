@@ -351,6 +351,9 @@ class RadioAudio {
             
             console.log(`Audio initialized: ${this.stations.length} stations, ${this.stationTracks.size} tracks created`);
             
+            // Start debugging automatically
+            this.startDebugging();
+            
             // Notify that initialization is complete
             console.log('=== Audio initialization complete, calling callback ===');
             console.log('Callback function exists:', !!this.onInitializationComplete);
@@ -988,6 +991,133 @@ class RadioAudio {
             console.log('Stations available for whistles:', this.stations.map(s => `${s.id} at ${s.position}`));
         } else {
             console.log('No stations available for whistles');
+        }
+    }
+
+    // Comprehensive debugging method
+    debugAudioSystem() {
+        console.log('\n=== AUDIO SYSTEM DEBUG REPORT ===');
+        console.log(`Timestamp: ${new Date().toISOString()}`);
+        console.log(`Current Dial Position: ${this.dialPosition}`);
+        console.log(`Power State: ${this.isPoweredOn ? 'ON' : 'OFF'}`);
+        console.log(`Master Volume: ${this.masterVolume.toFixed(3)}`);
+        
+        // Audio Context Status
+        if (this.audioContext) {
+            console.log(`Audio Context State: ${this.audioContext.state}`);
+            console.log(`Audio Context Sample Rate: ${this.audioContext.sampleRate}Hz`);
+            console.log(`Audio Context Current Time: ${this.audioContext.currentTime.toFixed(3)}s`);
+        } else {
+            console.log('Audio Context: NOT INITIALIZED');
+        }
+        
+        // Master Bus Status
+        if (this.masterBus) {
+            console.log(`Master Bus Gain: ${this.masterBus.gain.value.toFixed(3)}`);
+        } else {
+            console.log('Master Bus: NOT INITIALIZED');
+        }
+        
+        // Station Tracks Status
+        console.log('\n--- STATION TRACKS ---');
+        console.log(`Total Stations: ${this.stations.length}`);
+        console.log(`Total Tracks Created: ${this.stationTracks.size}`);
+        
+        // Calculate current volumes for all stations
+        const stationVolumes = [];
+        for (const station of this.stations) {
+            const track = this.stationTracks.get(station.id);
+            const volume = this.calculateStationVolume(station, this.dialPosition);
+            stationVolumes.push({
+                id: station.id,
+                position: station.position,
+                strength: station.strength,
+                sigma: station.sigma,
+                volume: volume,
+                track: track
+            });
+        }
+        
+        // Sort by volume for display
+        stationVolumes.sort((a, b) => b.volume - a.volume);
+        
+        stationVolumes.forEach((station, index) => {
+            const track = station.track;
+            const isTopK = index < 3; // Top 3 stations
+            
+            console.log(`\nStation ${index + 1}: ${station.id}`);
+            console.log(`  Position: ${station.position}`);
+            console.log(`  Strength: ${station.strength}`);
+            console.log(`  Sigma: ${station.sigma}`);
+            console.log(`  Calculated Volume: ${station.volume.toFixed(3)}`);
+            console.log(`  Is Top-K: ${isTopK}`);
+            
+            if (track) {
+                console.log(`  Track Ready: ${track.isReady}`);
+                console.log(`  Track Playing: ${track.isPlaying}`);
+                console.log(`  Track Gain Node Value: ${track.gainNode.gain.value.toFixed(3)}`);
+                console.log(`  Audio Element Ready State: ${track.audioEl.readyState}`);
+                console.log(`  Audio Element Paused: ${track.audioEl.paused}`);
+                console.log(`  Audio Element Current Time: ${track.audioEl.currentTime.toFixed(3)}s`);
+                console.log(`  Audio Element Duration: ${track.audioEl.duration || 'Unknown'}`);
+                console.log(`  Audio Element Error: ${track.audioEl.error ? track.audioEl.error.message : 'None'}`);
+            } else {
+                console.log(`  Track: NOT CREATED`);
+            }
+        });
+        
+        // Noise Tracks Status
+        console.log('\n--- NOISE TRACKS ---');
+        for (const [noiseType, track] of this.noiseTracks) {
+            console.log(`\nNoise: ${noiseType}`);
+            if (track && track.gainNode) {
+                console.log(`  Gain Node Value: ${track.gainNode.gain.value.toFixed(3)}`);
+                console.log(`  Source Active: ${track.source ? 'Yes' : 'No'}`);
+            } else {
+                console.log(`  Track: NOT AVAILABLE`);
+            }
+        }
+        
+        // Whistle System Status
+        console.log('\n--- WHISTLE SYSTEM ---');
+        console.log(`Whistles Enabled: ${this.whistlesEnabled}`);
+        if (this.whistleBus) {
+            console.log(`Whistle Bus Gain: ${this.whistleBus.gain.value.toFixed(3)}`);
+        }
+        if (this.whistleLimiter) {
+            console.log(`Whistle Limiter Threshold: ${this.whistleLimiter.threshold.value}dB`);
+        }
+        console.log(`Active Whistle Oscillators: ${this.whistleOscillators.size}`);
+        
+        // Cabinet Effects Status
+        console.log('\n--- CABINET EFFECTS ---');
+        if (this.cabinet) {
+            console.log(`Cabinet Effects: ACTIVE`);
+        } else {
+            console.log(`Cabinet Effects: NOT INITIALIZED`);
+        }
+        
+        console.log('=== END DEBUG REPORT ===\n');
+    }
+
+    // Start debugging interval
+    startDebugging() {
+        if (this.debugInterval) {
+            clearInterval(this.debugInterval);
+        }
+        
+        console.log('Starting audio system debugging (every 5 seconds)...');
+        this.debugInterval = setInterval(() => {
+            this.debugAudioSystem();
+        }, 5000);
+    }
+
+    // Stop debugging interval
+    stopDebugging() {
+        if (this.debugInterval) {
+            clearInterval(this.debugInterval);
+            this.debugInterval = null;
+            console.log('Audio system debugging stopped');
         }
     }
 } 

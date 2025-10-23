@@ -159,6 +159,31 @@ window.setWhistleConfig = function(config) {
     }
 };
 
+// Make debugging functions available globally
+window.startAudioDebug = function() {
+    if (window.radioController && window.radioController.audio) {
+        window.radioController.audio.startDebugging();
+    } else {
+        console.log('Radio controller not ready yet');
+    }
+};
+
+window.stopAudioDebug = function() {
+    if (window.radioController && window.radioController.audio) {
+        window.radioController.audio.stopDebugging();
+    } else {
+        console.log('Radio controller not ready yet');
+    }
+};
+
+window.debugAudioOnce = function() {
+    if (window.radioController && window.radioController.audio) {
+        window.radioController.audio.debugAudioSystem();
+    } else {
+        console.log('Radio controller not ready yet');
+    }
+};
+
 // Initialize the radio when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     window.radioController = new RadioController();
