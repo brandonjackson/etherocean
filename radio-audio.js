@@ -36,15 +36,6 @@ class RadioAudio {
         this.initializeAudio();
     }
 
-    _initializeWhistles() {
-        if (!this.audioContext) return;
-        
-        // Initialize whistle system
-        this.whistleSystem = new RadioWhistles(this.audioContext, this.masterBus);
-        
-        console.log('Whistle system initialized');
-    }
-
     _initializeMasterBus() {
         if (!this.audioContext) return;
         
@@ -54,35 +45,6 @@ class RadioAudio {
         
         console.log('Master bus initialized');
     }
-
-    _initializeCabinet() {
-        console.log('_initializeCabinet called');
-        if (!this.audioContext) {
-            console.log('No audio context, returning');
-            return;
-        }
-        
-        console.log('Initializing cabinet effects...');
-        
-        // Import RadioCabinet class (assuming it's loaded in the page)
-        if (typeof RadioCabinet == 'undefined') {
-            console.error('RadioCabinet class not found');
-            return;
-        }
-
-        this.cabinet = new RadioCabinet(this.audioContext);
-        console.log('Cabinet effects initialized successfully');
-        
-        // Connect master bus through cabinet to destination
-        if (this.masterBus) {
-            this.cabinet.connect(this.masterBus, this.audioContext.destination);
-            console.log('Master bus routed through cabinet effects');
-            
-            // Whistle system is already connected to master bus during initialization
-        }
-    }
-
-    // Whistle methods are now handled directly by the RadioWhistles class
 
     setInitializationCallback(callback) {
         this.onInitializationComplete = callback;
@@ -101,10 +63,11 @@ class RadioAudio {
             this._initializeMasterBus();
             
             // Initialize whistle system
-            this._initializeWhistles();
+            this.whistleSystem = new RadioWhistles(this.audioContext, this.masterBus);
             
             // Initialize cabinet effects
-            this._initializeCabinet();
+            this.cabinet = new RadioCabinet(this.audioContext);
+            this.cabinet.connect(this.masterBus, this.audioContext.destination);
             
             await this.loadStations();
             await this.loadNoiseTracks();
