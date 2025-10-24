@@ -86,36 +86,25 @@ class RadioAudio {
         }
         
         console.log('Initializing cabinet effects...');
-        console.log('RadioCabinet available:', typeof RadioCabinet !== 'undefined');
         
         // Import RadioCabinet class (assuming it's loaded in the page)
-        if (typeof RadioCabinet !== 'undefined') {
-            this.cabinet = new RadioCabinet(this.audioContext);
-            console.log('Cabinet effects initialized successfully');
+        if (typeof RadioCabinet == 'undefined') {
+            console.error('RadioCabinet class not found');
+            return;
+        }
+
+        this.cabinet = new RadioCabinet(this.audioContext);
+        console.log('Cabinet effects initialized successfully');
+        
+        // Connect master bus through cabinet to destination
+        if (this.masterBus) {
+            this.cabinet.connect(this.masterBus, this.audioContext.destination);
+            console.log('Master bus routed through cabinet effects');
             
-            // Connect master bus through cabinet to destination
-            if (this.masterBus) {
-                this.cabinet.connect(this.masterBus, this.audioContext.destination);
-                console.log('Master bus routed through cabinet effects');
-                
-                // Connect whistles to master bus
-                if (this.whistleLimiter) {
-                    this.whistleLimiter.connect(this.masterBus);
-                    console.log('Whistles connected to master bus');
-                }
-            }
-        } else {
-            console.warn('RadioCabinet class not found - cabinet effects disabled');
-            // Connect master bus directly to destination
-            if (this.masterBus) {
-                this.masterBus.connect(this.audioContext.destination);
-                console.log('Master bus connected directly to destination');
-                
-                // Connect whistles to master bus
-                if (this.whistleLimiter) {
-                    this.whistleLimiter.connect(this.masterBus);
-                    console.log('Whistles connected to master bus');
-                }
+            // Connect whistles to master bus
+            if (this.whistleLimiter) {
+                this.whistleLimiter.connect(this.masterBus);
+                console.log('Whistles connected to master bus');
             }
         }
     }
@@ -365,15 +354,7 @@ class RadioAudio {
                 console.error('No initialization callback set!');
             }
         } catch (error) {
-            console.error('Web Audio API not supported:', error);
-            console.log('=== Audio initialization failed, but showing start button anyway ===');
-            // Still show start button even if audio fails
-            if (this.onInitializationComplete) {
-                console.log('Calling initialization callback despite error...');
-                this.onInitializationComplete();
-            } else {
-                console.error('No initialization callback set for error case!');
-            }
+            console.error('initializeAudio faled. Web Audio API not supported:', error);
         }
     }
 
