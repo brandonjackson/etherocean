@@ -1,6 +1,6 @@
 stations:
   - id: "alabamy-bound"
-    title: "Alabamy Bound"
+    title: "KDKA Pittsburgh playing Alabamy Bound"
     description: "a popular song from 1925"
     src: "alabamy-bound.mp3"
     archive: ""
@@ -8,21 +8,21 @@ stations:
     strength: 0.8
     sigma: 1.0 
   - id: "morse"
-    title: "Morse Code"
+    title: "Morse Code broadcast from an unknown source"
     description: "a common sound on the airwaves"
     src: "morse.mp3"
     position: 156.7
     strength: 0.5
     sigma: 2.0 
   - id: "shipping-forecast"
-    title: "Shipping Forecast"
+    title: "The BBC playing the Shipping Forecast"
     description: "broadcast since 1925"
     src: "shipping-forecast.mp3"
     position: 73.2
     strength: 0.8
     sigma: 1.0 
   - id: "time-signal"
-    title: "Time Signal"
+    title: "A Time Signal used to synchronize clocks"
     description: "broadcast since 1912"
     src: "time-signal.mp3"
     position: 142.8
@@ -37,7 +37,7 @@ stations:
     strength: 0.6
     sigma: 1.0 
   - id: "amateur-chat"  
-    title: "Amateur Chat"
+    title: "Amateurs enthusiasts chatting"
     description: "Chat between ham radio operators"
     src: "amateur-chat-441697.mp3"
     archive: "https://freesound.org/people/klankbeeld/sounds/441697/"
@@ -45,7 +45,7 @@ stations:
     strength: 0.6
     sigma: 1.0 
   - id: "noisy-polish-station"
-    title: "Garbled Polish Broadcast"
+    title: "Radio Krakow, too faint to trace"
     description: "Polish AM station"
     src: "websdr_recording_start_2025-10-11T16_30_57Z_225.4kHz.wav"
     archive: "http://websdr.ewi.utwente.nl:8901/"
@@ -53,7 +53,7 @@ stations:
     strength: 0.4
     sigma: 1.0 
   - id: "mozart-40"
-    title: "Mozarts 40th Symphony"
+    title: "Hamburg playing Mozart's 40th Symphony"
     description: "Popular recording in Germany"
     src: "Mozart - Symphony No. 40 in G minor, K. 550 [complete] - Am4d3usM0z4rt (youtube).mp3"
     archive: "Mozart - Symphony No. 40 in G minor, K. 550 [complete] - Am4d3usM0z4rt (youtube).mp3"
@@ -61,7 +61,7 @@ stations:
     strength: 0.7
     sigma: 1.0
   - id: "spanish-anthem"
-    title: "Spanish National Anthem"
+    title: "San Sebastian playing the Spanish National Anthem"
     description: "Spain España Spanien - Spain (Marcha Real) Himno Nacionales Nationale Hymne National Anthem"
     src: "spanish-national-anthem.mp3"
     archive: ""
@@ -69,7 +69,7 @@ stations:
     strength: 0.8
     sigma: 1.0
   - id: "bbc-electronic-interference"
-    title: "BBC Electronic Interference"
+    title: "Untraceable electronic interference"
     description: "Electronic interference from BBC archives"
     src: "bbc_electronic_07069064.mp3"
     archive: "https://sound-effects.bbcrewind.co.uk/search?q=electronic"
@@ -77,7 +77,7 @@ stations:
     strength: 0.5
     sigma: 1.5
   - id: "english-lesson-german"
-    title: "English Lesson for German Listeners"
+    title: "Koenigswusterhausen broadcasting an English lesson"
     description: "English language lesson broadcast for German audience"
     src: "english-lesson-german.mp3"
     archive: ""
@@ -85,7 +85,7 @@ stations:
     strength: 0.4
     sigma: 1.0
   - id: "spanish-music"
-    title: "Granada"
+    title: "Radio Barcelona playing Granada"
     description: "Albeniz recording"
     src: "granada.mp3"
     archive: "https://www.youtube.com/watch?v=uua_3tVK2rY"
@@ -93,7 +93,7 @@ stations:
     strength: 0.8
     sigma: 1.0
   - id: "morse-code-interference"
-    title: "Morse Code Interference"
+    title: "Untraceable Morse Code interference overdriven for long-range communication"
     description: "from BBC"
     src: "bbc_morse-code_07041169.mp3"
     archive: "https://sound-effects.bbcrewind.co.uk/search?q=morse"

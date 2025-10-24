@@ -6,6 +6,11 @@ class RadioAudio {
         
         // Audio tracks
         this.stationTracks = new Map(); // Map of station ID to audio track
+        
+        // Station discovery
+        this.discoveredStations = new Set(); // Track which stations have been discovered
+        this.currentDiscoveryStation = null; // Currently being discovered
+        this.discoveryAnimationId = null; // Animation frame ID
         this.noiseTracks = new Map(); // Map of noise type to audio track
         
         // Configuration
@@ -563,8 +568,131 @@ class RadioAudio {
 
     // Method to be called when dial position changes
     onDialPositionChange(dialPosition) {
+        this.dialPosition = dialPosition;
         if (this.isPoweredOn) {
             this.updateMixing(dialPosition);
+            this.checkStationDiscovery(dialPosition);
+        }
+    }
+
+    // Check if user is tuned close enough to a station to trigger discovery
+    checkStationDiscovery(dialPosition) {
+        if (!this.stations) return;
+
+        let isNearStation = false;
+        
+        // Check each station to see if we're within 0.2 points
+        for (const station of this.stations) {
+            const distance = Math.abs(dialPosition - station.position);
+            
+            if (distance <= 0.2) {
+                isNearStation = true;
+                if (!this.discoveredStations.has(station.id)) {
+                    // Start discovery animation for this station
+                    this.startStationDiscovery(station);
+                    break; // Only discover one station at a time
+                }
+            }
+        }
+        
+        // If not near any station and triangle is white, reset it to grey
+        if (!isNearStation && this.isTriangleWhite()) {
+            this.resetTriangleColor();
+        }
+    }
+
+    // Check if triangle is currently white
+    isTriangleWhite() {
+        const triangle = document.getElementById('dialPointer');
+        if (!triangle) return false;
+        const currentColor = triangle.style.borderTopColor;
+        return currentColor === 'rgb(255, 255, 255)' || currentColor === '#fff' || currentColor === '#ffffff';
+    }
+
+    // Reset triangle color to grey immediately
+    resetTriangleColor() {
+        const triangle = document.getElementById('dialPointer');
+        if (!triangle) return;
+        
+        // Cancel any ongoing animation
+        if (this.discoveryAnimationId) {
+            cancelAnimationFrame(this.discoveryAnimationId);
+            this.discoveryAnimationId = null;
+        }
+        
+        // Immediately reset to darker grey
+        triangle.style.borderTopColor = '#666';
+        this.currentDiscoveryStation = null;
+        
+        console.log('Triangle color reset to default grey immediately');
+    }
+
+    // Start the station discovery animation
+    startStationDiscovery(station) {
+        console.log(`Station discovery started for: ${station.title}`);
+        
+        // Mark station as being discovered
+        this.currentDiscoveryStation = station;
+        this.discoveredStations.add(station.id);
+        
+        // Start the triangle color animation
+        this.animateTriangleDiscovery();
+        
+        // Show discovery message
+        this.showStationDiscoveryMessage(station);
+    }
+
+    // Animate triangle color from grey to white over 15 seconds
+    animateTriangleDiscovery() {
+        const triangle = document.getElementById('dialPointer');
+        if (!triangle) return;
+
+        const startTime = Date.now();
+        const duration = 15000; // 15 seconds
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Apply cubic easing curve (ease-out)
+            const easedProgress = 1 - Math.pow(1 - progress, 3);
+            
+            // Interpolate from #666 to #fff
+            const greyR = 0x66;
+            const greyG = 0x66;
+            const greyB = 0x66;
+            const whiteR = 0xff;
+            const whiteG = 0xff;
+            const whiteB = 0xff;
+            
+            const currentR = Math.round(greyR + (whiteR - greyR) * easedProgress);
+            const currentG = Math.round(greyG + (whiteG - greyG) * easedProgress);
+            const currentB = Math.round(greyB + (whiteB - greyB) * easedProgress);
+            
+            const colorHex = `#${currentR.toString(16).padStart(2, '0')}${currentG.toString(16).padStart(2, '0')}${currentB.toString(16).padStart(2, '0')}`;
+            
+            triangle.style.borderTopColor = colorHex;
+            
+            if (progress < 1) {
+                this.discoveryAnimationId = requestAnimationFrame(animate);
+            } else {
+                // Animation complete
+                this.discoveryAnimationId = null;
+                this.currentDiscoveryStation = null;
+            }
+        };
+        
+        animate();
+    }
+
+    // Show station discovery message
+    showStationDiscoveryMessage(station) {
+        if (window.radioController && window.radioController.messages) {
+            // Wait for the triangle animation to complete (15 seconds) then show combined message
+            setTimeout(() => {
+                const message = `Station Discovered! ${station.title}`;
+                window.radioController.messages.displayMessage(message, "#FFF");
+            }, 15000);
         }
     }
 
