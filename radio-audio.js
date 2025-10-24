@@ -371,7 +371,7 @@ class RadioAudio {
         return Math.max(0, Math.min(1, volume));
     }
 
-    // Mixing function - updates all track volumes based on dial position with top-K streaming
+    // Mixing function - updates all track volumes based on dial position
     updateMixing(dialPosition) {
         // Check if audio context is ready
         if (!this.audioContext || this.audioContext.state !== 'running') {
@@ -394,35 +394,32 @@ class RadioAudio {
             }
         }
         
-        // Sort by volume (highest first) and get top K stations
+        // Sort by volume (highest first) for debugging
         stationVolumes.sort((a, b) => b.volume - a.volume);
-        const topK = stationVolumes.slice(0, 3); // Only play top 3 stations
-        const topKIds = new Set(topK.map(s => s.id));
         
-        // Start/stop stations based on top-K selection
+        // Start/stop stations based on volume threshold
         for (const stationData of stationVolumes) {
             const { id, volume, track } = stationData;
-            const isTopK = topKIds.has(id);
-            const scaledVolume = isTopK ? volume * this.masterVolume : 0;
+            const scaledVolume = volume * this.masterVolume;
             
             // Only start/stop if track is ready
             if (track.isReady) {
-                // Start/stop streaming based on top-K status
-                if (isTopK && !track.isPlaying) {
+                // Start/stop streaming based on volume threshold
+                if (volume > 0.01 && !track.isPlaying) { // Start if volume > 1%
                     track.start();
-                } else if (!isTopK && track.isPlaying) {
+                } else if (volume <= 0.01 && track.isPlaying) { // Stop if volume <= 1%
                     track.stop();
                 }
             }
             
-            // Set volume (0 for non-top-K stations)
+            // Set volume for all stations
             track.gainNode.gain.setValueAtTime(scaledVolume, this.audioContext.currentTime);
         }
         
         // Calculate ether noise volume based on how "tuned in" we are
         // If we have strong station signals, reduce ether noise
         // If we have weak/no station signals, increase ether noise
-        const maxStationVolume = topK.length > 0 ? Math.max(...topK.map(s => s.volume)) : 0;
+        const maxStationVolume = stationVolumes.length > 0 ? Math.max(...stationVolumes.map(s => s.volume)) : 0;
         const etherVolume = this.maxEtherNoiseVolume * (1 - maxStationVolume) * this.masterVolume;
         
         // Apply volume to ether noise
@@ -664,14 +661,14 @@ class RadioAudio {
         
         stationVolumes.forEach((station, index) => {
             const track = station.track;
-            const isTopK = index < 3; // Top 3 stations
+            const isPlaying = station.volume > 0.01; // Playing if volume > 1%
             
             console.log(`\nStation ${index + 1}: ${station.id}`);
             console.log(`  Position: ${station.position}`);
             console.log(`  Strength: ${station.strength}`);
             console.log(`  Sigma: ${station.sigma}`);
             console.log(`  Calculated Volume: ${station.volume.toFixed(3)}`);
-            console.log(`  Is Top-K: ${isTopK}`);
+            console.log(`  Should Be Playing: ${isPlaying}`);
             
             if (track) {
                 console.log(`  Track Ready: ${track.isReady}`);
