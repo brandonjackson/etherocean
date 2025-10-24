@@ -16,16 +16,7 @@ class RadioAudio {
         this.startupFadeDuration = 2; // Fade-in duration in seconds
         this.masterVolume = 0; // Master volume control
         
-        // Whistle Configuration
-        this.whistlesEnabled = true;             // master toggle
-        this.whistleScaleHzPerUnit = 1000;        // K: Hz per dial unit of offset
-        this.whistleEdgeWidth = 2.0;             // σ_edge (narrower than station σ)
-        this.whistleMaxGain = 0.03;              // peak gain when at "edge"
-        this.whistleCenterDeadband = 1.0;       // region around center with no whistle
-        this.whistleRampMs = 60;                 // gain & frequency ramp time in ms
-        this.whistleMaxSimultaneous = 3;         // limit for performance
-        this.whistleGlobalCeiling = 0.15;        // sum of whistles gain is capped
-        this.whistleMaxSafeFreq = 8000;         // maximum frequency to prevent clamping warnings
+        // Whistle system will be initialized separately
         
         // Station data
         this.stations = [];
@@ -33,10 +24,8 @@ class RadioAudio {
         // Callback for when initialization is complete
         this.onInitializationComplete = null;
         
-        // Whistle structures
-        this.whistleBus = null;                  // GainNode (sum of all whistle tones)
-        this.whistleLimiter = null;              // optional DynamicsCompressorNode
-        this.whistleOscillators = new Map();     // stationId -> { osc, gainNode }
+        // Whistle system instance
+        this.whistleSystem = null;
         
         // Cabinet effects
         this.cabinet = null;
@@ -50,20 +39,8 @@ class RadioAudio {
     _initializeWhistles() {
         if (!this.audioContext) return;
         
-        // Create whistle bus (sum of all whistle tones)
-        this.whistleBus = this.audioContext.createGain();
-        this.whistleBus.gain.value = 1.0; // Fixed gain, apply ceiling at per-station level
-        
-        // Create optional limiter for the whistle bus
-        this.whistleLimiter = this.audioContext.createDynamicsCompressor();
-        this.whistleLimiter.threshold.value = -20;
-        this.whistleLimiter.knee.value = 25;
-        this.whistleLimiter.ratio.value = 4;
-        this.whistleLimiter.attack.value = 0.003;
-        this.whistleLimiter.release.value = 0.25;
-        
-        // Connect whistle bus through limiter (will connect to master bus later)
-        this.whistleBus.connect(this.whistleLimiter);
+        // Initialize whistle system
+        this.whistleSystem = new RadioWhistles(this.audioContext, this.masterBus);
         
         console.log('Whistle system initialized');
     }
@@ -101,217 +78,11 @@ class RadioAudio {
             this.cabinet.connect(this.masterBus, this.audioContext.destination);
             console.log('Master bus routed through cabinet effects');
             
-            // Connect whistles to master bus
-            if (this.whistleLimiter) {
-                this.whistleLimiter.connect(this.masterBus);
-                console.log('Whistles connected to master bus');
-            }
+            // Whistle system is already connected to master bus during initialization
         }
     }
 
-    _startWhistleOscillators() {
-        if (!this.whistlesEnabled || !this.whistleBus) return;
-        
-        // Create oscillators for all stations
-        for (const station of this.stations) {
-            this._ensureWhistleForStation(station.id);
-        }
-        
-        console.log('Whistle oscillators started');
-    }
-
-    _stopWhistleOscillators() {
-        if (!this.whistleBus) return;
-        
-        // Ramp all whistle gains to 0
-        for (const [stationId, whistle] of this.whistleOscillators) {
-            if (whistle.gainNode) {
-                whistle.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-            }
-        }
-        
-        console.log('Whistle oscillators stopped');
-    }
-
-    _ensureWhistleForStation(stationId) {
-        if (this.whistleOscillators.has(stationId)) return;
-        
-        if (!this.audioContext || !this.whistleBus) return;
-        
-        // Create oscillator for this station
-        const oscillator = this.audioContext.createOscillator();
-        const gainNode = this.audioContext.createGain();
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.value = 0;
-        gainNode.gain.value = 0;
-        
-        // Connect oscillator -> gain -> whistle bus
-        oscillator.connect(gainNode);
-        gainNode.connect(this.whistleBus);
-        
-        // Start the oscillator
-        oscillator.start();
-        
-        // Store the whistle components
-        this.whistleOscillators.set(stationId, {
-            osc: oscillator,
-            gainNode: gainNode
-        });
-        
-        console.debug(`Whistle oscillator created for station: ${stationId}`);
-    }
-
-    _teardownWhistles() {
-        if (!this.whistleOscillators) return;
-        
-        // Stop and disconnect all whistle oscillators
-        for (const [stationId, whistle] of this.whistleOscillators) {
-            if (whistle.osc) {
-                whistle.osc.stop();
-                whistle.osc.disconnect();
-            }
-            if (whistle.gainNode) {
-                whistle.gainNode.disconnect();
-            }
-        }
-        
-        this.whistleOscillators.clear();
-        
-        if (this.whistleBus) {
-            this.whistleBus.disconnect();
-        }
-        if (this.whistleLimiter) {
-            this.whistleLimiter.disconnect();
-        }
-        
-        console.log('Whistle system torn down');
-    }
-
-    _updateWhistlesForDial(dialPosition) {
-        if (!this.whistlesEnabled || !this.whistleBus || !this.isPoweredOn) return;
-        
-        const currentTime = this.audioContext.currentTime;
-        const rampTime = this.whistleRampMs / 1000;
-        
-        // Calculate maximum safe frequency to prevent clamping warnings
-        const maxSafeFreq = this.whistleMaxSafeFreq;
-        const maxSafeOffset = maxSafeFreq / this.whistleScaleHzPerUnit;
-        
-        // Calculate whistle parameters for each station
-        const stationWhistles = [];
-        
-        for (const station of this.stations) {
-            const offset = Math.abs(dialPosition - station.position);
-            
-            // Skip if within deadband (no whistle on-center)
-            if (offset < this.whistleCenterDeadband) {
-                stationWhistles.push({
-                    stationId: station.id,
-                    frequency: 0,
-                    gain: 0,
-                    offset: offset
-                });
-                continue;
-            }
-            
-            // Calculate whistle frequency based on offset, with automatic scaling
-            let frequency = offset * this.whistleScaleHzPerUnit;
-            
-            // If frequency would be too high, scale it down proportionally
-            if (frequency > maxSafeFreq) {
-                const scaleFactor = maxSafeFreq / frequency;
-                frequency = maxSafeFreq;
-                // Optionally reduce gain for very high frequencies to maintain balance
-                const gainReduction = Math.sqrt(scaleFactor);
-                stationWhistles.push({
-                    stationId: station.id,
-                    frequency: frequency,
-                    gain: 0, // Will be calculated below
-                    offset: offset,
-                    gainReduction: gainReduction
-                });
-            } else {
-                stationWhistles.push({
-                    stationId: station.id,
-                    frequency: frequency,
-                    gain: 0, // Will be calculated below
-                    offset: offset,
-                    gainReduction: 1.0
-                });
-            }
-        }
-        
-        // Calculate gains for all stations
-        for (const whistle of stationWhistles) {
-            if (whistle.frequency > 0) {
-                // Calculate gain using edge-gated Gaussian
-                const proximity = Math.exp(-0.5 * Math.pow(whistle.offset / this.whistleEdgeWidth, 2));
-                let gain = this.whistleMaxGain * proximity;
-                
-                // Apply gain reduction for high frequencies
-                gain *= whistle.gainReduction;
-                
-                // Optional: modulate by station strength
-                const station = this.stations.find(s => s.id === whistle.stationId);
-                if (station) {
-                    gain *= station.strength;
-                }
-                
-                whistle.gain = gain;
-            }
-        }
-        
-        // Sort by gain (highest first) and limit to max simultaneous
-        stationWhistles.sort((a, b) => b.gain - a.gain);
-        const selectedWhistles = stationWhistles.slice(0, this.whistleMaxSimultaneous);
-        
-        // Apply global ceiling if needed
-        let totalGain = selectedWhistles.reduce((sum, w) => sum + w.gain, 0);
-        let scaleFactor = 1.0;
-        
-        if (totalGain > this.whistleGlobalCeiling) {
-            scaleFactor = this.whistleGlobalCeiling / totalGain;
-        }
-        
-        // Apply whistle automation for selected stations
-        for (const whistle of selectedWhistles) {
-            const scaledGain = whistle.gain * scaleFactor;
-            this._applyWhistleAutomation(whistle.stationId, whistle.frequency, scaledGain, rampTime, currentTime);
-        }
-        
-        // Ramp non-selected whistles to 0
-        const selectedIds = new Set(selectedWhistles.map(w => w.stationId));
-        for (const [stationId, whistle] of this.whistleOscillators) {
-            if (!selectedIds.has(stationId)) {
-                this._applyWhistleAutomation(stationId, 0, 0, rampTime, currentTime);
-            }
-        }
-    }
-
-    _applyWhistleAutomation(stationId, freqHz, gain, rampTime, currentTime) {
-        const whistle = this.whistleOscillators.get(stationId);
-        if (!whistle) return;
-        
-        // Ensure oscillator exists
-        this._ensureWhistleForStation(stationId);
-        
-        // Get the updated whistle reference
-        const updatedWhistle = this.whistleOscillators.get(stationId);
-        if (!updatedWhistle) return;
-        
-        // Clamp frequency to valid Web Audio API range to prevent warnings
-        const clampedFreq = Math.max(0, Math.min(freqHz, 22050));
-        
-        // Ramp frequency and gain smoothly
-        updatedWhistle.osc.frequency.setTargetAtTime(clampedFreq, currentTime, rampTime);
-        updatedWhistle.gainNode.gain.setTargetAtTime(gain, currentTime, rampTime);
-        
-        // Only log if frequency was clamped
-        if (freqHz !== clampedFreq) {
-            console.debug(`Whistle ${stationId}: frequency clamped from ${freqHz.toFixed(0)}Hz to ${clampedFreq.toFixed(0)}Hz`);
-        }
-    }
+    // Whistle methods are now handled directly by the RadioWhistles class
 
     setInitializationCallback(callback) {
         this.onInitializationComplete = callback;
@@ -714,7 +485,9 @@ class RadioAudio {
         }
 
         // Update whistle automation
-        this._updateWhistlesForDial(dialPosition);
+        if (this.whistleSystem) {
+            this.whistleSystem.updateWhistlesForDial(dialPosition, this.stations, this.isPoweredOn);
+        }
     }
 
     togglePower() {
@@ -773,7 +546,9 @@ class RadioAudio {
         }
         
         // Start whistle oscillators
-        this._startWhistleOscillators();
+        if (this.whistleSystem) {
+            this.whistleSystem.startWhistleOscillators(this.stations);
+        }
         
         // Start master volume fade-in
         this.fadeInMasterVolume();
@@ -833,7 +608,9 @@ class RadioAudio {
         }
         
         // Stop whistle oscillators cleanly
-        this._stopWhistleOscillators();
+        if (this.whistleSystem) {
+            this.whistleSystem.stopWhistleOscillators();
+        }
         
         console.log('Radio powered off');
     }
@@ -899,81 +676,8 @@ class RadioAudio {
         return this.etherAMStaticVolume;
     }
 
-    // Whistle Configuration Setters/Getters
-    setWhistlesEnabled(enabled) {
-        this.whistlesEnabled = enabled;
-        if (!enabled) {
-            this._teardownWhistles();
-        }
-    }
-    
-    setWhistleScale(hzPerUnit) {
-        this.whistleScaleHzPerUnit = hzPerUnit;
-    }
-    
-    setWhistleEdgeWidth(value) {
-        this.whistleEdgeWidth = value;
-    }
-    
-    setWhistleMaxGain(value) {
-        this.whistleMaxGain = value;
-    }
-    
-    setWhistleCenterDeadband(value) {
-        this.whistleCenterDeadband = value;
-    }
-    
-    setWhistleRampMs(value) {
-        this.whistleRampMs = value;
-    }
-    
-    setWhistleMaxSimultaneous(value) {
-        this.whistleMaxSimultaneous = value;
-    }
-    
-    setWhistleGlobalCeiling(value) {
-        this.whistleGlobalCeiling = value;
-    }
-    
-    setWhistleMaxSafeFreq(value) {
-        this.whistleMaxSafeFreq = value;
-    }
-    
-    // Whistle Getters
-    getWhistlesEnabled() { return this.whistlesEnabled; }
-    getWhistleScale() { return this.whistleScaleHzPerUnit; }
-    getWhistleEdgeWidth() { return this.whistleEdgeWidth; }
-    getWhistleMaxGain() { return this.whistleMaxGain; }
-    getWhistleCenterDeadband() { return this.whistleCenterDeadband; }
-    getWhistleRampMs() { return this.whistleRampMs; }
-    getWhistleMaxSimultaneous() { return this.whistleMaxSimultaneous; }
-    getWhistleGlobalCeiling() { return this.whistleGlobalCeiling; }
-    getWhistleMaxSafeFreq() { return this.whistleMaxSafeFreq; }
-
-    // Test method for whistle system
-    testWhistles() {
-        if (!this.whistlesEnabled) {
-            console.log('Whistles are disabled');
-            return;
-        }
-        
-        console.log('Testing whistle system...');
-        console.log('Current configuration:');
-        console.log(`  Scale: ${this.whistleScaleHzPerUnit} Hz/unit`);
-        console.log(`  Edge Width: ${this.whistleEdgeWidth}`);
-        console.log(`  Max Gain: ${this.whistleMaxGain}`);
-        console.log(`  Deadband: ${this.whistleCenterDeadband}`);
-        console.log(`  Ramp Time: ${this.whistleRampMs}ms`);
-        console.log(`  Max Simultaneous: ${this.whistleMaxSimultaneous}`);
-        console.log(`  Global Ceiling: ${this.whistleGlobalCeiling}`);
-        console.log(`  Max Safe Frequency: ${this.whistleMaxSafeFreq}Hz`);
-        
-        if (this.stations.length > 0) {
-            console.log('Stations available for whistles:', this.stations.map(s => `${s.id} at ${s.position}`));
-        } else {
-            console.log('No stations available for whistles');
-        }
-    }
+    // Whistle configuration methods are now available directly on the whistleSystem instance
+    // Access them via: radioAudio.whistleSystem.setWhistlesEnabled(), etc.
 
     // Comprehensive debugging method
     debugAudioSystem() {
@@ -1061,14 +765,12 @@ class RadioAudio {
         
         // Whistle System Status
         console.log('\n--- WHISTLE SYSTEM ---');
-        console.log(`Whistles Enabled: ${this.whistlesEnabled}`);
-        if (this.whistleBus) {
-            console.log(`Whistle Bus Gain: ${this.whistleBus.gain.value.toFixed(3)}`);
+        if (this.whistleSystem) {
+            console.log(`Whistle System: ACTIVE`);
+            // For detailed whistle debugging, use: this.whistleSystem.testWhistles(this.stations)
+        } else {
+            console.log(`Whistle System: NOT INITIALIZED`);
         }
-        if (this.whistleLimiter) {
-            console.log(`Whistle Limiter Threshold: ${this.whistleLimiter.threshold.value}dB`);
-        }
-        console.log(`Active Whistle Oscillators: ${this.whistleOscillators.size}`);
         
         // Cabinet Effects Status
         console.log('\n--- CABINET EFFECTS ---');
