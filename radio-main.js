@@ -124,6 +124,8 @@ class RadioController {
             console.log('Audio power state:', isOn);
             
             if (isOn) {
+                // Show default message when radio is started
+                this.messages.showDefaultMessage();
                 // Update mixing for current dial position
                 this.audio.onDialPositionChange(this.ui.getDialPosition());
             }
@@ -181,6 +183,34 @@ window.debugAudioOnce = function() {
         window.radioController.audio.debugAudioSystem();
     } else {
         console.log('Radio controller not ready yet');
+    }
+};
+
+// Make displayMessage function available globally for testing
+window.displayMessage = function(text, color = null) {
+    if (window.radioController && window.radioController.messages) {
+        window.radioController.messages.displayMessage(text, color);
+        console.log(`Displaying message: "${text}"${color ? ` with color: "${color}"` : ''}`);
+    } else {
+        console.log('Radio controller or message system not ready yet');
+    }
+};
+
+// Debug function to check message system state
+window.debugMessageSystem = function() {
+    if (window.radioController && window.radioController.messages) {
+        const ms = window.radioController.messages;
+        console.log('Message System Debug Info:');
+        console.log('- isDisplayingMessage:', ms.isDisplayingMessage);
+        console.log('- displayMessageTimeout:', ms.displayMessageTimeout);
+        console.log('- originalColor:', ms.originalColor);
+        console.log('- messageElement:', ms.messageElement);
+        if (ms.messageElement) {
+            console.log('- messageElement.textContent:', ms.messageElement.textContent);
+            console.log('- messageElement.style.color:', ms.messageElement.style.color);
+        }
+    } else {
+        console.log('Radio controller or message system not ready yet');
     }
 };
 
