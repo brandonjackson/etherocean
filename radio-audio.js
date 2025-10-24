@@ -371,7 +371,7 @@ class RadioAudio {
         return Math.max(0, Math.min(1, volume));
     }
 
-    // Mixing function - updates all track volumes based on dial position
+    // Mixing function - keeps all tracks playing and controls volume (mobile Safari friendly)
     updateMixing(dialPosition) {
         // Check if audio context is ready
         if (!this.audioContext || this.audioContext.state !== 'running') {
@@ -397,22 +397,17 @@ class RadioAudio {
         // Sort by volume (highest first) for debugging
         stationVolumes.sort((a, b) => b.volume - a.volume);
         
-        // Start/stop stations based on volume threshold
+        // Keep all tracks playing and just control volume (mobile Safari friendly)
         for (const stationData of stationVolumes) {
             const { id, volume, track } = stationData;
             const scaledVolume = volume * this.masterVolume;
             
-            // Only start/stop if track is ready
-            if (track.isReady) {
-                // Start/stop streaming based on volume threshold
-                if (volume > 0.01 && !track.isPlaying) { // Start if volume > 1%
-                    track.start();
-                } else if (volume <= 0.01 && track.isPlaying) { // Stop if volume <= 1%
-                    track.stop();
-                }
+            // Ensure track is playing if ready
+            if (track.isReady && !track.isPlaying) {
+                track.start();
             }
             
-            // Set volume for all stations
+            // Set volume for all stations (0 for very low volumes)
             track.gainNode.gain.setValueAtTime(scaledVolume, this.audioContext.currentTime);
         }
         
@@ -661,14 +656,14 @@ class RadioAudio {
         
         stationVolumes.forEach((station, index) => {
             const track = station.track;
-            const isPlaying = station.volume > 0.01; // Playing if volume > 1%
+            const hasAudibleVolume = station.volume > 0.01; // Audible if volume > 1%
             
             console.log(`\nStation ${index + 1}: ${station.id}`);
             console.log(`  Position: ${station.position}`);
             console.log(`  Strength: ${station.strength}`);
             console.log(`  Sigma: ${station.sigma}`);
             console.log(`  Calculated Volume: ${station.volume.toFixed(3)}`);
-            console.log(`  Should Be Playing: ${isPlaying}`);
+            console.log(`  Audible Volume: ${hasAudibleVolume}`);
             
             if (track) {
                 console.log(`  Track Ready: ${track.isReady}`);
