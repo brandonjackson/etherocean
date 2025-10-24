@@ -56,7 +56,7 @@ Ether Ocean is built around the Web Audio API and a master-bus architecture:
 
 - Tracks and mixing
   - Station tracks: One per station defined in `stations.yaml`. Each is a `GainNode` feeding a shared `masterBus`.
-  - Ether noise: Multiple noise beds (e.g., `baseline-noise.mp3`, `am-static.wav`) mixed alongside stations for “air” and static.
+  - Ether noise: Combined noise bed (`ether-static.mp3`) mixed alongside stations for "air" and static.
   - Dial-based mixing: Each station’s gain is driven by a Gaussian centered on its `position`. Sigma controls tuning width, strength scales max gain.
   - Master volume fade: On power-on, the master bus fades in smoothly to avoid abrupt starts.
 

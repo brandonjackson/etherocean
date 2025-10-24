@@ -10,9 +10,8 @@ class RadioAudio {
         
         // Configuration
         this.maxConstantNoiseVolume = 1;
-        this.maxEtherNoiseVolume = 0.3;
-        this.etherBaselineVolume = 0.3;  // Volume multiplier for baseline noise
-        this.etherAMStaticVolume = 0.8;  // Volume multiplier for AM static noise
+        this.maxEtherNoiseVolume = 0.2;
+        // Ether noise volume is now controlled by maxEtherNoiseVolume
         this.startupFadeDuration = 2; // Fade-in duration in seconds
         this.masterVolume = 0; // Master volume control
         
@@ -195,17 +194,14 @@ class RadioAudio {
             constantNoiseTrack.gainNode.gain.value = this.maxConstantNoiseVolume;
             this.noiseTracks.set('constantNoise', constantNoiseTrack);
             
-            // Load ether noise components (baseline + AM static)
-            const baselineNoiseBuffer = await this.loadAudioFile('sounds/baseline-noise.mp3');
-            const amStaticBuffer = await this.loadAudioFile('sounds/am-static.wav');
+            // Load ether noise (combined baseline + AM static)
+            const etherNoiseBuffer = await this.loadAudioFile('sounds/ether-static.mp3');
             
-            // Create separate tracks for each component
-            const baselineTrack = this.createAudioTrack(baselineNoiseBuffer, true);
-            const amStaticTrack = this.createAudioTrack(amStaticBuffer, true);
+            // Create single track for ether noise
+            const etherNoiseTrack = this.createAudioTrack(etherNoiseBuffer, true);
             
-            // Store both tracks for the ether noise channel
-            this.noiseTracks.set('etherNoiseBaseline', baselineTrack);
-            this.noiseTracks.set('etherNoiseAMStatic', amStaticTrack);
+            // Store the combined ether noise track
+            this.noiseTracks.set('etherNoise', etherNoiseTrack);
             
             console.log('Noise tracks loaded');
         } catch (error) {
@@ -429,16 +425,11 @@ class RadioAudio {
         const maxStationVolume = topK.length > 0 ? Math.max(...topK.map(s => s.volume)) : 0;
         const etherVolume = this.maxEtherNoiseVolume * (1 - maxStationVolume) * this.masterVolume;
         
-        // Apply volume to both ether noise components
-        const baselineTrack = this.noiseTracks.get('etherNoiseBaseline');
-        const amStaticTrack = this.noiseTracks.get('etherNoiseAMStatic');
+        // Apply volume to ether noise
+        const etherNoiseTrack = this.noiseTracks.get('etherNoise');
         
-        if (baselineTrack) {
-            baselineTrack.gainNode.gain.setValueAtTime(etherVolume * this.etherBaselineVolume, this.audioContext.currentTime);
-        }
-        
-        if (amStaticTrack) {
-            amStaticTrack.gainNode.gain.setValueAtTime(etherVolume * this.etherAMStaticVolume, this.audioContext.currentTime);
+        if (etherNoiseTrack) {
+            etherNoiseTrack.gainNode.gain.setValueAtTime(etherVolume, this.audioContext.currentTime);
         }
         
         // Apply master volume to constant noise
@@ -609,19 +600,7 @@ class RadioAudio {
         }
     }
 
-    setEtherBaselineVolume(volume) {
-        this.etherBaselineVolume = Math.max(0, Math.min(1, volume));
-        if (this.isPoweredOn) {
-            this.updateMixing(this.dialPosition);
-        }
-    }
-
-    setEtherAMStaticVolume(volume) {
-        this.etherAMStaticVolume = Math.max(0, Math.min(1, volume));
-        if (this.isPoweredOn) {
-            this.updateMixing(this.dialPosition);
-        }
-    }
+    // Ether noise volume is now controlled by setMaxEtherNoiseVolume()
 
     getMaxConstantNoiseVolume() {
         return this.maxConstantNoiseVolume;
@@ -631,13 +610,7 @@ class RadioAudio {
         return this.maxEtherNoiseVolume;
     }
 
-    getEtherBaselineVolume() {
-        return this.etherBaselineVolume;
-    }
-
-    getEtherAMStaticVolume() {
-        return this.etherAMStaticVolume;
-    }
+    // Ether noise volume is now controlled by getMaxEtherNoiseVolume()
 
     // Whistle configuration methods are now available directly on the whistleSystem instance
     // Access them via: radioAudio.whistleSystem.setWhistlesEnabled(), etc.
