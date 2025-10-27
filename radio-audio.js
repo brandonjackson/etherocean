@@ -175,13 +175,8 @@ class RadioAudio {
                 const track = this.createStreamingTrack(station);
                 this.stationTracks.set(station.id, track);
                 
-                // Wait for metadata to be ready with timeout
-                await Promise.race([
-                    track.waitForReady(),
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Timeout')), 5000)
-                    )
-                ]);
+                // Wait for track to be ready (no timeout - let it load naturally)
+                await track.waitForReady();
                 console.log(`✓ ${station.id} ready for streaming`);
                 
                 // Update progress after each station is ready
@@ -296,20 +291,21 @@ class RadioAudio {
                         return;
                     }
                     
-                    // Wait specifically for 'canplay' event - indicates enough data to start playing
-                    const onCanPlay = () => {
+                    // Wait for 'canplay' event - indicates enough data to start playing
+                    const onReady = () => {
                         this.isReady = true;
+                        console.log(`✓ ${this.stationId} ready for streaming`);
                         resolve();
                     };
                     
                     // Check if already ready (canplay state)
                     if (audioEl.readyState >= 3) { // HAVE_FUTURE_DATA or higher
-                        onCanPlay();
+                        onReady();
                         return;
                     }
                     
                     // Listen for canplay event
-                    audioEl.addEventListener('canplay', onCanPlay, { once: true });
+                    audioEl.addEventListener('canplay', onReady, { once: true });
                 });
             },
             
