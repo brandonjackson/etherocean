@@ -73,7 +73,14 @@ class RadioAudio {
             this.cabinet = new RadioCabinet(this.audioContext);
             this.cabinet.connect(this.masterBus, this.audioContext.destination);
             
+            // Calculate total loading items (stations + noise tracks)
+            this.totalLoadingItems = 0;
+            this.loadedItems = 0;
+            
+            // Load stations first
             await this.loadStations();
+            
+            // Load noise tracks
             await this.loadNoiseTracks();
             
             console.log(`Audio initialized: ${this.stations.length} stations, ${this.stationTracks.size} tracks created`);
@@ -102,6 +109,10 @@ class RadioAudio {
             const yamlText = await response.text();
             // For now, we'll parse a simplified format. In production, use a proper YAML parser
             this.stations = this.parseStationsYaml(yamlText);
+            
+            // Set total loading items (stations + 2 noise tracks)
+            this.totalLoadingItems = this.stations.length + 2; // 2 noise tracks: constantNoise and etherNoise
+            this.loadedItems = 0;
             
             // Create tracks with Safari mobile fallback
             try {
@@ -164,12 +175,6 @@ class RadioAudio {
                 const track = this.createStreamingTrack(station);
                 this.stationTracks.set(station.id, track);
                 
-                // Update progress
-                const progress = Math.round(((i + 1) / this.stations.length) * 100);
-                if (this.onProgressUpdate) {
-                    this.onProgressUpdate(progress);
-                }
-                
                 // Wait for metadata to be ready with timeout
                 await Promise.race([
                     track.waitForReady(),
@@ -178,12 +183,28 @@ class RadioAudio {
                     )
                 ]);
                 console.log(`✓ ${station.id} ready for streaming`);
+                
+                // Update progress after each station is ready
+                this.loadedItems++;
+                const progress = Math.round((this.loadedItems / this.totalLoadingItems) * 100);
+                console.log(`Loading progress: ${this.loadedItems}/${this.totalLoadingItems} (${progress}%) - Station: ${station.id}`);
+                if (this.onProgressUpdate) {
+                    this.onProgressUpdate(progress);
+                }
             } catch (error) {
                 console.error(`✗ Failed to create streaming track for ${station.id}:`, error.message);
                 // Mark as ready anyway to prevent blocking
                 const track = this.stationTracks.get(station.id);
                 if (track) {
                     track.isReady = true;
+                }
+                
+                // Still count as loaded for progress
+                this.loadedItems++;
+                const progress = Math.round((this.loadedItems / this.totalLoadingItems) * 100);
+                console.log(`Loading progress: ${this.loadedItems}/${this.totalLoadingItems} (${progress}%) - Station: ${station.id} (failed but counted)`);
+                if (this.onProgressUpdate) {
+                    this.onProgressUpdate(progress);
                 }
             }
         }
@@ -199,6 +220,14 @@ class RadioAudio {
             constantNoiseTrack.gainNode.gain.value = this.maxConstantNoiseVolume;
             this.noiseTracks.set('constantNoise', constantNoiseTrack);
             
+            // Update progress after constant noise is loaded
+            this.loadedItems++;
+            const progress = Math.round((this.loadedItems / this.totalLoadingItems) * 100);
+            console.log(`Loading progress: ${this.loadedItems}/${this.totalLoadingItems} (${progress}%) - Constant noise loaded`);
+            if (this.onProgressUpdate) {
+                this.onProgressUpdate(progress);
+            }
+            
             // Load ether noise (combined baseline + AM static)
             const etherNoiseBuffer = await this.loadAudioFile('sounds/ether-static.mp3');
             
@@ -208,9 +237,23 @@ class RadioAudio {
             // Store the combined ether noise track
             this.noiseTracks.set('etherNoise', etherNoiseTrack);
             
+            // Update progress after ether noise is loaded
+            this.loadedItems++;
+            const finalProgress = Math.round((this.loadedItems / this.totalLoadingItems) * 100);
+            console.log(`Loading progress: ${this.loadedItems}/${this.totalLoadingItems} (${finalProgress}%) - Ether noise loaded - ALL TRACKS COMPLETE!`);
+            if (this.onProgressUpdate) {
+                this.onProgressUpdate(finalProgress);
+            }
+            
             console.log('Noise tracks loaded');
         } catch (error) {
             console.error('Failed to load noise tracks:', error);
+            // Still count as loaded for progress even if failed
+            this.loadedItems += 2; // Count both noise tracks as loaded
+            const progress = Math.round((this.loadedItems / this.totalLoadingItems) * 100);
+            if (this.onProgressUpdate) {
+                this.onProgressUpdate(progress);
+            }
         }
     }
 
@@ -253,39 +296,20 @@ class RadioAudio {
                         return;
                     }
                     
-                    // Safari mobile compatible ready check
-                    const onReady = () => {
+                    // Wait specifically for 'canplay' event - indicates enough data to start playing
+                    const onCanPlay = () => {
                         this.isReady = true;
                         resolve();
                     };
                     
-                    // Check if already ready
+                    // Check if already ready (canplay state)
                     if (audioEl.readyState >= 3) { // HAVE_FUTURE_DATA or higher
-                        onReady();
+                        onCanPlay();
                         return;
                     }
                     
-                    // Listen for multiple events for better Safari compatibility
-                    const events = ['loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough'];
-                    let resolved = false;
-                    
-                    const cleanup = () => {
-                        events.forEach(event => {
-                            audioEl.removeEventListener(event, onReady);
-                        });
-                    };
-                    
-                    const onReadyOnce = () => {
-                        if (!resolved) {
-                            resolved = true;
-                            cleanup();
-                            onReady();
-                        }
-                    };
-                    
-                    events.forEach(event => {
-                        audioEl.addEventListener(event, onReadyOnce, { once: true });
-                    });
+                    // Listen for canplay event
+                    audioEl.addEventListener('canplay', onCanPlay, { once: true });
                 });
             },
             
