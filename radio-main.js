@@ -234,21 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
             messageElement.textContent = 'Tune in using the dial below';
         }
     }, 2000);
-    
-    // Emergency fallback: Force show start button after 10 seconds
-    setTimeout(() => {
-        const startBtn = document.getElementById('startBtn');
-        if (startBtn && startBtn.style.display === 'none') {
-            console.log('=== EMERGENCY FALLBACK: Forcing start button to appear ===');
-            console.log('Start button current state:', {
-                display: startBtn.style.display,
-                className: startBtn.className,
-                computedDisplay: window.getComputedStyle(startBtn).display,
-                computedOpacity: window.getComputedStyle(startBtn).opacity
-            });
-            window.radioController.showStartButton();
-        }
-    }, 10000);
 });
 
 // Handle page visibility changes to pause/resume audio
