@@ -11,6 +11,7 @@ class RadioAudio {
         this.discoveredStations = new Set(); // Track which stations have been discovered
         this.currentDiscoveryStation = null; // Currently being discovered
         this.discoveryAnimationId = null; // Animation frame ID
+        this.discoveryMessageTimeout = null; // Timeout ID for the discovery message
         this.noiseTracks = new Map(); // Map of noise type to audio track
         
         // Configuration
@@ -681,8 +682,16 @@ class RadioAudio {
             }
         }
         
-        // If not near any station and triangle is white, reset it to grey
-        if (!isNearStation && this.isTriangleWhite()) {
+        // If we're currently discovering a station, check if we're still near it
+        if (this.currentDiscoveryStation) {
+            const currentDistance = Math.abs(dialPosition - this.currentDiscoveryStation.position);
+            // If we've tuned away from the station we're discovering, reset everything
+            if (currentDistance > 0.2) {
+                this.resetTriangleColor();
+            }
+        } else if (!isNearStation && this.isTriangleWhite()) {
+            // Fallback: if not near any station and triangle is white, reset it
+            // (This handles edge cases where currentDiscoveryStation is null but triangle is white)
             this.resetTriangleColor();
         }
     }
@@ -700,10 +709,24 @@ class RadioAudio {
         const triangle = document.getElementById('dialPointer');
         if (!triangle) return;
         
+        // If we're resetting before discovery completes, remove from discoveredStations
+        // so it can be rediscovered
+        if (this.currentDiscoveryStation) {
+            this.discoveredStations.delete(this.currentDiscoveryStation.id);
+            console.log(`Removed ${this.currentDiscoveryStation.id} from discovered stations (discovery incomplete)`);
+        }
+        
         // Cancel any ongoing animation
         if (this.discoveryAnimationId) {
             cancelAnimationFrame(this.discoveryAnimationId);
             this.discoveryAnimationId = null;
+        }
+        
+        // Cancel any pending discovery message
+        if (this.discoveryMessageTimeout) {
+            clearTimeout(this.discoveryMessageTimeout);
+            this.discoveryMessageTimeout = null;
+            console.log('Cancelled pending discovery message');
         }
         
         // Immediately reset to darker grey
@@ -717,9 +740,8 @@ class RadioAudio {
     startStationDiscovery(station) {
         console.log(`Station discovery started for: ${station.title}`);
         
-        // Mark station as being discovered
+        // Mark station as being discovered (but don't add to discoveredStations yet - only when complete)
         this.currentDiscoveryStation = station;
-        this.discoveredStations.add(station.id);
         
         // Start the triangle color animation
         this.animateTriangleDiscovery();
@@ -736,7 +758,20 @@ class RadioAudio {
         const startTime = Date.now();
         const duration = 15000; // 15 seconds
         
+        // Store the station we're discovering so we can verify we're still near it
+        const discoveryStation = this.currentDiscoveryStation;
+        if (!discoveryStation) return;
+        
         const animate = () => {
+            // Check if we're still discovering this station and still near it
+            if (!this.currentDiscoveryStation || 
+                this.currentDiscoveryStation.id !== discoveryStation.id ||
+                Math.abs(this.dialPosition - discoveryStation.position) > 0.2) {
+                // We've tuned away or discovery was reset - stop animation
+                this.discoveryAnimationId = null;
+                return;
+            }
+            
             const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / duration, 1);
             
@@ -762,7 +797,16 @@ class RadioAudio {
             if (progress < 1) {
                 this.discoveryAnimationId = requestAnimationFrame(animate);
             } else {
-                // Animation complete
+                // Animation complete - mark station as fully discovered
+                // But only if we're still near the station
+                if (this.currentDiscoveryStation && 
+                    this.currentDiscoveryStation.id === discoveryStation.id &&
+                    Math.abs(this.dialPosition - discoveryStation.position) <= 0.2) {
+                    this.discoveredStations.add(this.currentDiscoveryStation.id);
+                    console.log(`Station ${this.currentDiscoveryStation.id} discovery completed`);
+                } else {
+                    console.log(`Station discovery animation completed but user tuned away, not marking as discovered`);
+                }
                 this.discoveryAnimationId = null;
                 this.currentDiscoveryStation = null;
             }
@@ -774,11 +818,42 @@ class RadioAudio {
     // Show station discovery message
     showStationDiscoveryMessage(station) {
         if (window.radioController && window.radioController.messages) {
+            // Cancel any existing discovery message timeout
+            if (this.discoveryMessageTimeout) {
+                clearTimeout(this.discoveryMessageTimeout);
+                this.discoveryMessageTimeout = null;
+            }
+            
+            // Store reference to the station for verification when timeout fires
+            const discoveryStationId = station.id;
+            const discoveryStationPosition = station.position;
+            
             // Wait for the triangle animation to complete (15 seconds) then show combined message
-            setTimeout(() => {
-                const message = `Station Discovered! ${station.title}`;
-                window.radioController.messages.displayMessage(message, "#FFF");
+            const timeoutId = setTimeout(() => {
+                // Verify the timeout wasn't cancelled (check if this timeout is still the active one)
+                if (this.discoveryMessageTimeout !== timeoutId) {
+                    console.log('Discovery message timeout was cancelled');
+                    return;
+                }
+                
+                // Verify we're still near the station position before showing message
+                // (Check position instead of currentDiscoveryStation since it gets cleared when animation completes)
+                const currentDistance = Math.abs(this.dialPosition - discoveryStationPosition);
+                if (currentDistance <= 0.2) {
+                    const message = `Station Discovered! ${station.title}`;
+                    console.log(`Showing discovery message for ${discoveryStationId}`);
+                    if (window.radioController && window.radioController.messages) {
+                        window.radioController.messages.displayMessage(message, "#FFF");
+                    } else {
+                        console.error('radioController or messages not available');
+                    }
+                } else {
+                    console.log(`Discovery message cancelled - no longer near station ${discoveryStationId} (distance: ${currentDistance.toFixed(2)})`);
+                }
+                this.discoveryMessageTimeout = null;
             }, 15000);
+            
+            this.discoveryMessageTimeout = timeoutId;
         }
     }
 
