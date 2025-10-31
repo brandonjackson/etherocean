@@ -144,6 +144,44 @@
             display: none;
         }
 
+        /* Overlay footer */
+        .overlay-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            text-align: center;
+            z-index: 2001;
+            transition: opacity 2s ease;
+        }
+        
+        .overlay-footer.fading {
+            opacity: 0;
+        }
+
+        .learn-more-link {
+            color: #BBB;
+            text-decoration: none;
+            font-size: 14px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: color 0.3s ease;
+        }
+
+        .learn-more-link:hover {
+            color: #FFF;
+        }
+
+        @media (max-width: 768px) {
+            .overlay-footer {
+                padding: 15px;
+            }
+            .learn-more-link {
+                font-size: 12px;
+            }
+        }
+
         .dial-section {
             /* height: 50vh; */
             display: flex;
@@ -337,6 +375,11 @@
                 <button class="start-btn" id="startBtn">Tune In</button>
             </div>
         </div>
+        
+        <!-- Footer fixed to bottom -->
+        <div class="overlay-footer">
+            <a href="learn-more.html" target="_blank" class="learn-more-link">Learn More</a>
+        </div>
     </div>
     
     <div class="top-section">
@@ -487,8 +530,12 @@
                 startBtn.addEventListener('click', function() {
                     // Fade only overlay contents over 2s, keep overlay visible
                     const content = overlay.querySelector('.overlay-content');
+                    const footer = overlay.querySelector('.overlay-footer');
                     if (content) {
                         content.classList.add('fading');
+                    }
+                    if (footer) {
+                        footer.classList.add('fading');
                     }
                     setTimeout(function() {
                         overlay.classList.add('hidden');
