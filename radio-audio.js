@@ -191,8 +191,10 @@ class RadioAudio {
             try {
                 // Preload the 3 closest stations fully, others just metadata
                 const preloadType = closest3StationIds.has(station.id) ? 'auto' : 'metadata';
+                console.log(`Creating track for ${station.id} with preload=${preloadType}`);
                 const track = this.createStreamingTrack(station, preloadType);
                 this.stationTracks.set(station.id, track);
+                console.log(`Track created for ${station.id}, waiting for ready...`);
                 
                 // Wait for track to be ready (no timeout - let it load naturally)
                 await track.waitForReady();
@@ -310,21 +312,66 @@ class RadioAudio {
                         return;
                     }
                     
+                    console.log(`Waiting for ${this.stationId} to be ready (current readyState: ${audioEl.readyState})`);
+                    
+                    let resolved = false;
+                    
                     // Wait for 'canplay' event - indicates enough data to start playing
-                    const onReady = () => {
+                    const onReady = (eventName = 'canplay') => {
+                        if (resolved) return;
+                        resolved = true;
                         this.isReady = true;
-                        console.log(`✓ ${this.stationId} ready for streaming`);
+                        console.log(`✓ ${this.stationId} ready for streaming (via ${eventName}, readyState: ${audioEl.readyState})`);
                         resolve();
                     };
                     
                     // Check if already ready (canplay state)
                     if (audioEl.readyState >= 3) { // HAVE_FUTURE_DATA or higher
-                        onReady();
+                        onReady('initial check');
                         return;
                     }
                     
-                    // Listen for canplay event
-                    audioEl.addEventListener('canplay', onReady, { once: true });
+                    // Listen for multiple events for Safari mobile compatibility
+                    const events = ['canplay', 'loadeddata', 'loadedmetadata'];
+                    events.forEach(eventName => {
+                        audioEl.addEventListener(eventName, () => onReady(eventName), { once: true });
+                    });
+                    
+                    // Also check readyState periodically as a fallback
+                    let lastReadyState = audioEl.readyState;
+                    const readyStateCheck = setInterval(() => {
+                        if (resolved) {
+                            clearInterval(readyStateCheck);
+                            return;
+                        }
+                        
+                        // Only log if readyState changed
+                        if (audioEl.readyState !== lastReadyState) {
+                            console.log(`${this.stationId} readyState changed: ${lastReadyState} → ${audioEl.readyState}`);
+                            lastReadyState = audioEl.readyState;
+                        }
+                        
+                        // If we have at least HAVE_CURRENT_DATA (2) or higher, consider it ready
+                        if (audioEl.readyState >= 2) {
+                            clearInterval(readyStateCheck);
+                            onReady('periodic readyState check');
+                        }
+                    }, 500);
+                    
+                    // Clear interval after 30 seconds to avoid infinite checking
+                    setTimeout(() => {
+                        clearInterval(readyStateCheck);
+                        if (!resolved) {
+                            console.warn(`${this.stationId} timed out waiting for ready state, marking as ready anyway`);
+                            onReady('timeout fallback');
+                        }
+                    }, 30000);
+                    
+                    // Error handling
+                    audioEl.addEventListener('error', (e) => {
+                        console.error(`${this.stationId} error:`, e, audioEl.error);
+                        // Don't mark as resolved on error - let the timeout handle it
+                    }, { once: true });
                 });
             },
             
