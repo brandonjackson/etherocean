@@ -169,10 +169,29 @@ class RadioAudio {
     async createStationTracks() {
         console.log(`Creating ${this.stations.length} station tracks with streaming...`);
         
+        // Find the 3 stations closest to the starting dial position
+        const startingPosition = this.dialPosition;
+        const stationsWithDistance = this.stations.map(station => ({
+            station,
+            distance: Math.abs(station.position - startingPosition)
+        }));
+        
+        // Sort by distance and get the 3 closest
+        stationsWithDistance.sort((a, b) => a.distance - b.distance);
+        const closest3Stations = stationsWithDistance.slice(0, 3);
+        const closest3StationIds = new Set(closest3Stations.map(item => item.station.id));
+        
+        console.log(`Preloading full content for 3 closest stations to position ${startingPosition}:`);
+        closest3Stations.forEach((item, index) => {
+            console.log(`  ${index + 1}. ${item.station.id} at position ${item.station.position} (distance: ${item.distance.toFixed(1)})`);
+        });
+        
         for (let i = 0; i < this.stations.length; i++) {
             const station = this.stations[i];
             try {
-                const track = this.createStreamingTrack(station);
+                // Preload the 3 closest stations fully, others just metadata
+                const preloadType = closest3StationIds.has(station.id) ? 'auto' : 'metadata';
+                const track = this.createStreamingTrack(station, preloadType);
                 this.stationTracks.set(station.id, track);
                 
                 // Wait for track to be ready (no timeout - let it load naturally)
@@ -258,10 +277,10 @@ class RadioAudio {
         return await this.audioContext.decodeAudioData(arrayBuffer);
     }
 
-    createStreamingTrack(station) {
+    createStreamingTrack(station, preload = 'metadata') {
         // Create HTML audio element for streaming
         const audioEl = new Audio(`sounds/${station.src}`);
-        audioEl.preload = 'metadata'; // Safari mobile compatible
+        audioEl.preload = preload; // 'auto' for first 3 stations, 'metadata' for others
         audioEl.loop = true;
         
         // Create MediaElementSourceNode
